@@ -12,6 +12,7 @@ import {
   orderBy,
   Firestore
 } from "firebase/firestore";
+import { adminDb } from "./firebaseAdmin";
 
 export interface Complaint {
   complaintId: string;
@@ -239,14 +240,28 @@ export async function resetComplaintToFiled(id: string): Promise<void> {
 }
 
 export async function clearAllComplaints(): Promise<void> {
-  if (db) {
+  if (adminDb) {
+    try {
+      const complaintsCol = adminDb.collection("complaints");
+      const snapshot = await complaintsCol.get();
+      const batch = adminDb.batch();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      snapshot.docs.forEach((docSnap: any) => {
+        batch.delete(docSnap.ref);
+      });
+      await batch.commit();
+      console.log("Cleared complaints from Firestore using Firebase Admin SDK.");
+    } catch (e) {
+      console.error("Error clearing complaints from Firestore using Admin SDK:", e instanceof Error ? e.message : String(e));
+    }
+  } else if (db) {
     try {
       const q = query(collection(db, "complaints"));
       const snapshot = await getDocs(q);
       const batchPromises = snapshot.docs.map((docSnap) => deleteDoc(doc(db, "complaints", docSnap.id)));
       await Promise.all(batchPromises);
     } catch (e) {
-      console.error("Error clearing complaints from Firestore:", e);
+      console.error("Error clearing complaints from Firestore using Client SDK:", e);
     }
   }
   
