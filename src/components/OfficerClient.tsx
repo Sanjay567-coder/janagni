@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldAlert, BarChart3, Clock, AlertOctagon, CheckCircle2, X, FileText, CheckCircle } from "lucide-react";
+import { ShieldAlert, BarChart3, Clock, AlertOctagon, CheckCircle2, X, FileText, CheckCircle, Image as ImageIcon, Video as VideoIcon, PlusCircle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { Complaint } from "@/lib/db";
 import { useState } from "react";
@@ -18,6 +18,10 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Officer inputs
+  const [officerNote, setOfficerNote] = useState("");
+  const [officerProofUrl, setOfficerProofUrl] = useState<string | null>(null);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -28,6 +32,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
   const slaBreaches = complaints.filter((c) => c.daysElapsed >= 30 && c.stage !== "resolved");
   const activeRtis = complaints.filter((c) => c.stage === "rti_triggered");
   const resolvedComplaints = complaints.filter((c) => c.stage === "resolved");
+  const commissionerAlerts = complaints.filter((c) => c.stage === "internal_alert");
   
   const avgResolutionTime = resolvedComplaints.length > 0
     ? (resolvedComplaints.reduce((sum, c) => sum + c.daysElapsed, 0) / resolvedComplaints.length).toFixed(1) + "d"
@@ -62,19 +67,25 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
     return location;
   };
 
-  const getStageLabel = (stage: Complaint["stage"]) => {
+  const getStageLabel = (stage: Complaint["stage"], isDeclined?: boolean) => {
+    if (stage === "resolved") {
+      return isDeclined 
+        ? (language === "ta" ? "நிராகரிக்கப்பட்டது" : "Declined") 
+        : (language === "ta" ? "தீர்க்கப்பட்டது" : "Resolved");
+    }
     switch (stage) {
       case "filed": return language === "ta" ? "தாக்கல் செய்யப்பட்டது" : "Filed";
       case "internal_alert": return language === "ta" ? "மண்டல எச்சரிக்கை" : "Nudge Active";
       case "rti_triggered": return language === "ta" ? "RTI தயாரானது" : "RTI Drafted";
       case "escalated": return language === "ta" ? "நீதிமன்ற மனு" : "Writ Escalated";
-      case "resolved": return language === "ta" ? "தீர்க்கப்பட்டது" : "Resolved";
     }
   };
 
   const getSlaStatusText = (c: Complaint) => {
     if (c.stage === "resolved") {
-      return language === "ta" ? "தீர்க்கப்பட்டது" : "Resolved";
+      return c.isDeclined 
+        ? (language === "ta" ? "நிராகரிக்கப்பட்டது" : "Declined")
+        : (language === "ta" ? "தீர்க்கப்பட்டது" : "Resolved");
     }
     if (c.daysElapsed === 0) {
       return language === "ta" ? "காலக்கெடுவிற்குள்" : "Within SLA";
@@ -87,10 +98,23 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
   };
 
   const getSlaColorClass = (c: Complaint) => {
-    if (c.stage === "resolved") return "text-sage-500";
+    if (c.stage === "resolved") {
+      return c.isDeclined ? "text-red-500 font-semibold" : "text-sage-500";
+    }
     if (c.daysElapsed >= 30) return "text-ember-600 font-semibold";
     if (c.daysElapsed >= 20) return "text-ember-500";
     return "text-calm-300";
+  };
+
+  const handleOfficerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setOfficerProofUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const downloadOfficerPdf = (c: Complaint) => {
@@ -156,6 +180,12 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
     showToast("Document downloaded as PDF");
   };
 
+  const openReview = (c: Complaint) => {
+    setSelectedComplaint(c);
+    setOfficerNote(c.officerNote || "");
+    setOfficerProofUrl(c.officerProofUrl || null);
+  };
+
   return (
     <div className={`flex flex-col flex-1 animate-fade-in ${language === "ta" ? "font-tamil" : ""}`}>
       {/* Toast Notifications */}
@@ -168,7 +198,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className={`font-semibold mb-1 text-2xl ${language === "ta" ? "font-bold" : "font-fraunces"}`}>
+        <h1 className={`font-semibold mb-1 text-2xl ${language === "ta" ? "font-bold font-tamil" : "font-fraunces"}`}>
           {t("officerTitle")}
         </h1>
         <p className="text-text-500 text-xs uppercase tracking-wider font-sans">
@@ -193,6 +223,21 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
         </div>
         <span className="text-4xl font-mono font-bold text-text-100">{slaBreaches.length}</span>
       </div>
+
+      {/* Higher Official Zonal Alerts Alert Banner (Grace Period Window) */}
+      {commissionerAlerts.length > 0 && (
+        <div className="bg-[#E4572E]/10 border border-[#E4572E]/40 rounded-custom p-4 mb-4 shadow-[0_4px_15px_rgba(228,87,46,0.1)] flex flex-col gap-1.5 animate-pulse">
+          <span className="text-[11px] text-ember-500 font-mono tracking-wider uppercase font-bold flex items-center gap-1.5">
+            <AlertOctagon className="w-4 h-4 text-ember-500" />
+            {language === "ta" ? "உயர் அதிகாரி சலுகை காலம் செயலில் உள்ளது" : "Zonal Commissioner Grace Active"}
+          </span>
+          <span className="text-[12.5px] text-text-300 font-sans">
+            {language === "ta" 
+              ? `${commissionerAlerts.length} புகார்கள் 30 நாள் காலக்கெடுவை தாண்டி 7 நாள் சலுகை காலத்தில் உள்ளன. உடனே தீர்க்கப்பட வேண்டும்!`
+              : `${commissionerAlerts.length} complaints have breached the 30-day SLA and are in the 7-day grace window before auto-RTI escalation. Zonal Commissioner notified.`}
+          </span>
+        </div>
+      )}
 
       {/* Secondary KPI Cards Grid */}
       <div className="grid grid-cols-3 gap-3 mb-6">
@@ -270,7 +315,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
                   <tr key={c.complaintId} className="border-b border-border last:border-0 hover:bg-ink-700/20 transition-colors duration-150">
                     <td className="p-3 font-mono text-xs">
                       <button 
-                        onClick={() => setSelectedComplaint(c)}
+                        onClick={() => openReview(c)}
                         className="text-text-300 hover:text-ember-500 hover:underline font-mono text-xs text-left"
                       >
                         {c.complaintId}
@@ -290,20 +335,35 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
                       </div>
                     </td>
                     <td className="p-3 text-xs text-text-300 font-sans">
-                      {getStageLabel(c.stage)}
+                      <div className="flex items-center gap-1.5">
+                        {c.stage === "internal_alert" && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-ember-500 animate-pulse" />
+                        )}
+                        <span>{getStageLabel(c.stage, c.isDeclined)}</span>
+                      </div>
                     </td>
                     <td className="p-3 text-right">
                       {c.stage === "resolved" ? (
-                        <span className="text-[10.5px] text-sage-500 font-mono font-semibold px-2 py-1">
-                          {language === "ta" ? "முடிந்தது" : "Archived"}
+                        <span className={`text-[10.5px] font-mono font-semibold px-2 py-1 ${c.isDeclined ? "text-red-400" : "text-sage-500"}`}>
+                          {c.isDeclined 
+                            ? (language === "ta" ? "நிராகரிக்கப்பட்டது" : "Declined")
+                            : (language === "ta" ? "முடிந்தது" : "Archived")
+                          }
                         </span>
                       ) : (
-                        <button 
-                          onClick={() => setSelectedComplaint(c)}
-                          className="text-[10.5px] font-semibold px-2.5 py-1.5 bg-ink-700 hover:bg-ink-600 text-text-100 rounded-custom border border-border hover:border-text-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
-                        >
-                          {language === "ta" ? "சரிபார்" : "Review"}
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {c.stage === "internal_alert" && (
+                            <span className="text-[8.5px] font-mono text-ember-500 font-bold border border-ember-500/40 bg-ember-500/5 px-1 py-0.5 rounded leading-none uppercase tracking-wide">
+                              {language === "ta" ? "உயர் அதிகாரி" : "Grace"}
+                            </span>
+                          )}
+                          <button 
+                            onClick={() => openReview(c)}
+                            className="text-[10.5px] font-semibold px-2.5 py-1.5 bg-ink-700 hover:bg-ink-600 text-text-100 rounded-custom border border-border hover:border-text-300 transition-all focus-visible:outline-none"
+                          >
+                            {language === "ta" ? "சரிபார்" : "Review"}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -324,7 +384,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
           onClick={() => setSelectedComplaint(null)}
         >
           <div 
-            className="w-full max-w-[460px] max-height-[85vh] bg-[#F4F1E9] text-[#1C1C1C] rounded-t-2xl sm:rounded-2xl overflow-y-auto p-6"
+            className="w-full max-w-[460px] max-height-[90vh] bg-[#F4F1E9] text-[#1C1C1C] rounded-t-2xl sm:rounded-2xl overflow-y-auto p-6 scrollbar-thin"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close */}
@@ -337,7 +397,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
             </button>
 
             {/* Header */}
-            <div className="font-mono text-[10.5px] uppercase tracking-wider text-[#8A5A2E]">
+            <div className="font-mono text-[10.5px] uppercase tracking-wider text-[#8A5A2E] font-bold">
               {language === "ta" ? "அதிகாரி மதிப்பாய்வு" : "OFFICER REVIEW PORTAL"}
             </div>
             
@@ -347,6 +407,22 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
             <div className="font-mono text-[12px] text-[#555] mb-4">
               ID: {selectedComplaint.complaintId} | {getTranslatedLocation(selectedComplaint.wardDetails)}
             </div>
+
+            {/* Attached Citizen Media (if present) */}
+            {selectedComplaint.attachedMediaUrl && (
+              <div className="border border-[#D8D3C4] rounded-lg p-3 mb-4 bg-[#FAF8F5]">
+                <strong className="block mb-1.5 text-[10px] font-mono text-[#666] uppercase flex items-center gap-1">
+                  {selectedComplaint.attachedMediaType === "image" ? <ImageIcon className="w-3.5 h-3.5" /> : <VideoIcon className="w-3.5 h-3.5" />}
+                  Citizen Attached Proof
+                </strong>
+                {selectedComplaint.attachedMediaType === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedComplaint.attachedMediaUrl} alt="Citizen attachment" className="max-h-[140px] w-full object-cover rounded border border-[#D8D3C4]" />
+                ) : (
+                  <video src={selectedComplaint.attachedMediaUrl} controls className="max-h-[140px] w-full rounded border border-[#D8D3C4]" />
+                )}
+              </div>
+            )}
 
             {/* Description / Transcript */}
             <div className="bg-[#EAE6DB] rounded-lg p-3.5 mb-4 text-xs text-[#2A2A2A] leading-relaxed font-sans border border-[#D8D3C4]">
@@ -362,13 +438,24 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
               </div>
               <div className="bg-[#EAE6DB] rounded-lg p-2.5 border border-[#D8D3C4]">
                 <span className="text-[#666] block text-[9.5px]">STATUS</span>
-                <span className="font-bold text-ember-600">{getStageLabel(selectedComplaint.stage)}</span>
+                <span className="font-bold text-ember-600">{getStageLabel(selectedComplaint.stage, selectedComplaint.isDeclined)}</span>
               </div>
             </div>
 
+            {/* Higher Official Notification Warning details inside modal */}
+            {selectedComplaint.stage === "internal_alert" && (
+              <div className="border border-[#E4572E]/30 bg-[#E4572E]/5 rounded-lg p-3 mb-4 text-xs leading-relaxed text-ember-600 font-sans flex items-start gap-2">
+                <AlertOctagon className="w-4 h-4 text-ember-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block text-[#1C1C1C] font-mono text-[10px] uppercase">Zonal Grace Period Alert</strong>
+                  <span>G.O. 99 breach registered. Zonal Commissioner has notified your office. Resolve this issue before Day 37 to avoid legal RTI auto-escalation.</span>
+                </div>
+              </div>
+            )}
+
             {/* Document Draft Actions (if stage is RTI or Writ) */}
             {(selectedComplaint.stage === "rti_triggered" || selectedComplaint.stage === "escalated") && (
-              <div className="border border-dashed border-[#B8B3A4] rounded-lg p-3 mb-4 bg-[#FAF8F5]">
+              <div className="border border-[#B8B3A4] rounded-lg p-3 mb-4 bg-[#FAF8F5]">
                 <h4 className="text-xs font-bold text-[#8A5A2E] flex items-center gap-1.5 font-sans mb-1.5">
                   <FileText className="w-4 h-4" />
                   {selectedComplaint.stage === "rti_triggered" 
@@ -377,10 +464,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
                   }
                 </h4>
                 <p className="text-[11.5px] text-[#555] leading-relaxed mb-2.5 font-sans">
-                  {language === "ta" 
-                    ? "குடிமகனால் கையொப்பமிடப்பட்ட சட்டப்பூர்வ ஆவணம் தயாரிக்கப்பட்டுள்ளது." 
-                    : "The legal escalation document has been automatically drafted and signed."
-                  }
+                  The legal escalation document has been automatically drafted and signed by the citizen.
                 </p>
                 <button
                   onClick={() => downloadOfficerPdf(selectedComplaint)}
@@ -391,22 +475,101 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
               </div>
             )}
 
-            {/* Resolution Actions */}
+            {/* Officer Inputs Area: Proof Attachments and Decline Excuses */}
+            <div className="border-t border-[#D8D3C4] pt-4 mt-4 flex flex-col gap-3.5">
+              <div>
+                <label className="block text-[10.5px] font-mono text-[#555] uppercase font-bold mb-1.5">
+                  {language === "ta" ? "அதிகாரி குறிப்பு / நிராகரிப்பு காரணம்:" : "Excuse Notes / Resolution Proof Notes:"}
+                </label>
+                <textarea
+                  value={officerNote}
+                  onChange={(e) => setOfficerNote(e.target.value)}
+                  placeholder={language === "ta" ? "தீர்க்கப்பட்டதற்கான ஆதாரம் அல்லது நிராகரிப்பதற்கான காரணம்..." : "Write details regarding resolution or reasons for declination here..."}
+                  className="w-full bg-[#EAE6DB] border border-[#D8D3C4] rounded-lg p-2.5 text-xs text-[#1C1C1C] focus:outline-none focus:ring-1 focus:ring-[#8A5A2E] font-sans resize-y min-h-[60px]"
+                />
+              </div>
+
+              <div>
+                <div className="block text-[10.5px] font-mono text-[#555] uppercase font-bold mb-1.5">
+                  {language === "ta" ? "தீர்க்கப்பட்ட புகைப்பட ஆதாரம்:" : "Resolution Proof Photo (Optional):"}
+                </div>
+                {!officerProofUrl ? (
+                  <label className="flex items-center justify-center gap-1.5 px-3 py-2 border border-dashed border-[#B8B3A4] rounded-lg text-xs font-semibold text-[#555] hover:text-[#1C1C1C] cursor-pointer hover:bg-black/5 transition-colors">
+                    <PlusCircle className="w-4 h-4 text-[#8A5A2E]" />
+                    <span>Attach Resolution Proof Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleOfficerFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 bg-[#EAE6DB] p-2 border border-[#D8D3C4] rounded-lg">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={officerProofUrl} alt="Proof preview" className="w-10 h-10 object-cover rounded border border-[#D8D3C4]" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[11px] text-[#1C1C1C] block truncate font-mono">Proof Attachment</span>
+                      <span className="text-[9px] text-[#666] block">Attached successfully</span>
+                    </div>
+                    <button
+                      onClick={() => setOfficerProofUrl(null)}
+                      className="text-[9.5px] text-red-600 hover:text-red-800 font-mono uppercase underline px-1"
+                    >
+                      {language === "ta" ? "நீக்கு" : "Remove"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resolution / Decline Action Buttons */}
             <div className="mt-5 pt-3.5 border-t border-[#D8D3C4] flex flex-col gap-2.5">
-              <button
-                onClick={async () => {
-                  const compId = selectedComplaint.complaintId;
-                  const daysEl = selectedComplaint.daysElapsed;
-                  setSelectedComplaint(null);
-                  showToast(language === "ta" ? "தீர்க்கப்பட்டதாக குறிக்கப்பட்டது" : "Marked as Resolved");
-                  await updateComplaintStageAction(compId, "resolved", daysEl);
-                  router.refresh();
-                }}
-                className="w-full py-3 bg-[#7FA687] text-white hover:bg-[#688D70] font-bold rounded-lg text-[13.5px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <CheckCircle className="w-4 h-4" />
-                {language === "ta" ? "தீர்க்கப்பட்டதாகக் குறிக்கவும்" : "Mark as Resolved"}
-              </button>
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Reject / Decline Button */}
+                <button
+                  onClick={async () => {
+                    if (!officerNote.trim()) {
+                      showToast(language === "ta" ? "நிராகரிக்க குறிப்பு தேவை!" : "Declination excuse note is required!");
+                      return;
+                    }
+                    const compId = selectedComplaint.complaintId;
+                    const daysEl = selectedComplaint.daysElapsed;
+                    setSelectedComplaint(null);
+                    showToast(language === "ta" ? "புகார் நிராகரிக்கப்பட்டது" : "Complaint Declined");
+                    await updateComplaintStageAction(compId, "resolved", daysEl, {
+                      officerNote: officerNote,
+                      officerProofUrl: officerProofUrl || undefined,
+                      isDeclined: true
+                    });
+                    router.refresh();
+                  }}
+                  className="py-3 bg-[#D37A6A] hover:bg-[#B55F50] text-white font-bold rounded-lg text-[13.5px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <AlertOctagon className="w-4 h-4" />
+                  {language === "ta" ? "நிராகரிக்க" : "Decline / Reject"}
+                </button>
+
+                {/* Approve / Mark as Resolved Button */}
+                <button
+                  onClick={async () => {
+                    const compId = selectedComplaint.complaintId;
+                    const daysEl = selectedComplaint.daysElapsed;
+                    setSelectedComplaint(null);
+                    showToast(language === "ta" ? "தீர்க்கப்பட்டதாக குறிக்கப்பட்டது" : "Marked as Resolved");
+                    await updateComplaintStageAction(compId, "resolved", daysEl, {
+                      officerNote: officerNote || "Completed and verified by ward engineer.",
+                      officerProofUrl: officerProofUrl || undefined,
+                      isDeclined: false
+                    });
+                    router.refresh();
+                  }}
+                  className="py-3 bg-[#7FA687] text-white hover:bg-[#688D70] font-bold rounded-lg text-[13.5px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {language === "ta" ? "தீர்க்கப்பட்டது" : "Mark Resolved"}
+                </button>
+              </div>
 
               <button
                 onClick={() => setSelectedComplaint(null)}

@@ -24,6 +24,11 @@ export interface Complaint {
   createdAt: string; // ISO String
   slaDeadline: string; // ISO String
   daysElapsed: number;
+  attachedMediaUrl?: string;
+  attachedMediaType?: "image" | "video";
+  officerNote?: string;
+  officerProofUrl?: string;
+  isDeclined?: boolean;
 }
 
 const firebaseConfig = {

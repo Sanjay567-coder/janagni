@@ -13,7 +13,7 @@ import {
 } from "@/app/actions";
 import { Complaint } from "@/lib/db";
 import { useLanguage } from "@/components/LanguageContext";
-import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle, AlertOctagon, ShieldAlert } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 interface DashboardClientProps {
@@ -60,6 +60,22 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
     cite: string;
   } | null>(null);
   const [isGeneratingDoc, setIsGeneratingDoc] = useState(false);
+
+  // Media Attachment States
+  const [attachedMediaUrl, setAttachedMediaUrl] = useState<string | null>(null);
+  const [attachedMediaType, setAttachedMediaType] = useState<"image" | "video" | null>(null);
+
+  const handleIntakeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAttachedMediaUrl(reader.result as string);
+      setAttachedMediaType(file.type.startsWith("image/") ? "image" : "video");
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Audio References
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -207,12 +223,16 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
         transcript: finalTranscript,
         category: finalCategory,
         wardDetails: finalWard,
-        severity: finalSeverity
+        severity: finalSeverity,
+        attachedMediaUrl: attachedMediaUrl || undefined,
+        attachedMediaType: attachedMediaType || undefined
       });
 
       setIsProcessingIntake(false);
       setShowTranscriptBox(false);
       setTranscript("");
+      setAttachedMediaUrl(null);
+      setAttachedMediaType(null);
       router.push(`/?id=${newId}`);
     } catch (e: unknown) {
       const err = e as Error;
@@ -630,6 +650,57 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                   {lang === "ta" ? (chips.severity === "High" ? "அதிதீவிரம்" : chips.severity === "Medium" ? "நடுத்தரம்" : "குறைவு") : chips.severity}
                 </span>
               </div>
+
+              {/* Media Attachment Selector */}
+              <div className="mt-3.5 pt-3 border-t border-border/40 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-text-400 font-mono uppercase tracking-wider">
+                    {lang === "ta" ? "ஊடக இணைப்பு (விருப்பத்தேர்வு):" : "Media Attachment (Optional):"}
+                  </span>
+                  {attachedMediaUrl && (
+                    <button
+                      onClick={() => {
+                        setAttachedMediaUrl(null);
+                        setAttachedMediaType(null);
+                      }}
+                      className="text-[9.5px] text-red-400 hover:text-red-300 font-mono uppercase underline"
+                    >
+                      {lang === "ta" ? "நீக்கு" : "Remove"}
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {!attachedMediaUrl ? (
+                    <label className="flex items-center gap-2 px-3 py-1.5 bg-ink-700 border border-border rounded-lg text-xs font-semibold text-text-300 hover:text-text-100 cursor-pointer hover:border-text-500 transition-colors">
+                      <PlusCircle className="w-4 h-4 text-ember-500" />
+                      <span>{lang === "ta" ? "புகைப்படம் / வீடியோவை இணைக்கவும்" : "Attach Photo / Video"}</span>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleIntakeFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3 w-full bg-ink-700/50 p-2 border border-border rounded-lg">
+                      {attachedMediaType === "image" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={attachedMediaUrl} alt="Intake attachment" className="w-10 h-10 object-cover rounded-md border border-border" />
+                      ) : (
+                        <div className="w-10 h-10 bg-ink-900 border border-border rounded-md flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-ember-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] text-text-300 block truncate font-mono">
+                          {attachedMediaType === "image" ? "Attached Photo" : "Attached Video"}
+                        </span>
+                        <span className="text-[9px] text-text-500 block">Ready to file</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -778,16 +849,84 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                 })}
               </div>
 
+              {/* Higher Official Alert notification warning for internal_alert grace window */}
+              {complaint.stage === "internal_alert" && (
+                <div className="mt-4 p-3 bg-ember-600/10 border border-ember-600/30 rounded-lg text-xs leading-relaxed text-ember-500 font-sans flex items-start gap-2 animate-pulse">
+                  <AlertOctagon className="w-4 h-4 text-ember-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-text-100 font-mono text-[10px] uppercase tracking-wider font-bold">
+                      {lang === "ta" ? "மண்டல உயர் அதிகாரி எச்சரிக்கை செயலில் உள்ளது" : "Zonal Commissioner Notification Dispatched"}
+                    </strong>
+                    <span className="text-[11.5px] text-text-300 block mt-0.5">
+                      {lang === "ta" 
+                        ? "அரசாணை 99 காலக்கெடு தவறியதால் ஆணையருக்கு எச்சரிக்கை அனுப்பப்பட்டது. 7 நாட்கள் சலுகை காலம் செயலில் உள்ளது." 
+                        : "G.O. 99 breach registered. Zonal Commissioner has been notified. 7-day grace window active before auto-RTI trigger."}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Status Explanation Box */}
               <div className="bg-ink-700 border border-border rounded-lg p-3 text-[13px] text-text-300 leading-relaxed mt-4 font-sans">
-                <span 
-                  dangerouslySetInnerHTML={{ 
-                    __html: lang === "en" 
-                      ? statusNotes[complaint.stage].en 
-                      : statusNotes[complaint.stage].ta 
-                  }} 
-                />
+                {complaint.stage === "resolved" && complaint.isDeclined ? (
+                  <span 
+                    dangerouslySetInnerHTML={{ 
+                      __html: lang === "en" 
+                        ? "<strong>Grievance Declined.</strong> The authority rejected this complaint. Please inspect the declination note and reason provided below."
+                        : "<strong>புகார் நிராகரிக்கப்பட்டது.</strong> இந்த புகாரை வார்டு அதிகாரி நிராகரித்துள்ளார். கீழே உள்ள நிராகரிப்பு காரணத்தை சரிபார்க்கவும்."
+                    }} 
+                  />
+                ) : (
+                  <span 
+                    dangerouslySetInnerHTML={{ 
+                      __html: lang === "en" 
+                        ? statusNotes[complaint.stage].en 
+                        : statusNotes[complaint.stage].ta 
+                    }} 
+                  />
+                )}
               </div>
+
+              {/* Attached Citizen Media */}
+              {complaint.attachedMediaUrl && (
+                <div className="mt-4 p-3 bg-ink-700/50 border border-border rounded-lg flex flex-col gap-2">
+                  <div className="text-[10px] text-text-400 font-mono uppercase tracking-wider">
+                    {lang === "ta" ? "இணைக்கப்பட்ட ஊடகம்:" : "Your Attached Media:"}
+                  </div>
+                  {complaint.attachedMediaType === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={complaint.attachedMediaUrl} alt="Attached Proof" className="max-h-[140px] w-full object-cover rounded-lg border border-border" />
+                  ) : (
+                    <video src={complaint.attachedMediaUrl} controls className="max-h-[140px] w-full rounded-lg border border-border" />
+                  )}
+                </div>
+              )}
+
+              {/* Officer Resolution Notes / Excuses / Declination / Proof */}
+              {(complaint.officerNote || complaint.officerProofUrl || complaint.isDeclined) && (
+                <div className="mt-4 p-3.5 bg-ink-700/80 border border-border rounded-lg flex flex-col gap-2 shadow-inner">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldAlert className={`w-4 h-4 ${complaint.isDeclined ? "text-ember-500" : "text-sage-500"}`} />
+                    <span className="text-[10.5px] text-text-300 font-mono uppercase tracking-wider font-bold">
+                      {complaint.isDeclined 
+                        ? (lang === "ta" ? "அதிகாரி நிராகரிப்பு விளக்கம்:" : "Officer Declination Excuse:")
+                        : (lang === "ta" ? "அதிகாரி தீர்வு அறிக்கை:" : "Officer Resolution Proof:")
+                      }
+                    </span>
+                  </div>
+                  {complaint.officerNote && (
+                    <p className="text-xs text-text-200 leading-relaxed font-sans italic bg-ink-800/40 p-2 rounded border border-border/30">
+                      &ldquo;{complaint.officerNote}&rdquo;
+                    </p>
+                  )}
+                  {complaint.officerProofUrl && (
+                    <div className="mt-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={complaint.officerProofUrl} alt="Officer Resolution Proof" className="max-h-[140px] w-full object-cover rounded-lg border border-border" />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* View Generated Document Button (Stage >= 2 / RTI) */}
               {(complaint.stage === "rti_triggered" || complaint.stage === "escalated") && (
@@ -812,10 +951,23 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
               {complaint.stage === "resolved" && (
                 <button
                   onClick={() => router.push(`/resolution/${complaint.complaintId}`)}
-                  className="mt-4.5 w-full py-3 rounded-full bg-sage-500 text-ink-900 font-bold text-[13.5px] flex items-center justify-center gap-1.5 hover:bg-sage-500/85 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 shadow-[0_4px_15px_rgba(127,166,135,0.25)] active:scale-[0.99]"
+                  className={`mt-4.5 w-full py-3 rounded-full font-bold text-[13.5px] flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 active:scale-[0.99] ${
+                    complaint.isDeclined
+                      ? "bg-ember-600 text-text-100 hover:bg-ember-700 focus-visible:ring-ember-500 shadow-[0_4px_15px_rgba(228,87,46,0.25)]"
+                      : "bg-sage-500 text-ink-900 hover:bg-sage-500/85 focus-visible:ring-sage-500 shadow-[0_4px_15px_rgba(127,166,135,0.25)]"
+                  }`}
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  {t("verifyResolutionBtn")}
+                  {complaint.isDeclined ? (
+                    <>
+                      <AlertOctagon className="w-4.5 h-4.5 animate-pulse" />
+                      {lang === "ta" ? "நிராகரிப்பை மறுபரிசீலனை செய்க" : "Review Declination & Appeal"}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      {t("verifyResolutionBtn")}
+                    </>
+                  )}
                 </button>
               )}
             </div>

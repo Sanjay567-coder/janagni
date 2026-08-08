@@ -248,6 +248,8 @@ export async function createComplaintAction(formData: {
   category: string;
   wardDetails: string;
   severity: string;
+  attachedMediaUrl?: string;
+  attachedMediaType?: "image" | "video";
 }) {
   const newId = `GCC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
   const now = new Date();
@@ -263,6 +265,8 @@ export async function createComplaintAction(formData: {
     createdAt: now.toISOString(),
     slaDeadline: sla.toISOString(),
     daysElapsed: 0,
+    attachedMediaUrl: formData.attachedMediaUrl,
+    attachedMediaType: formData.attachedMediaType,
   };
 
   await saveComplaint(complaint);
@@ -272,8 +276,23 @@ export async function createComplaintAction(formData: {
 }
 
 // 4. Update Complaint Stage / Days
-export async function updateComplaintStageAction(id: string, stage: Complaint["stage"], daysElapsed: number) {
-  await updateComplaint(id, { stage, daysElapsed });
+export async function updateComplaintStageAction(
+  id: string, 
+  stage: Complaint["stage"], 
+  daysElapsed: number,
+  extra?: {
+    officerNote?: string;
+    officerProofUrl?: string;
+    isDeclined?: boolean;
+  }
+) {
+  await updateComplaint(id, { 
+    stage, 
+    daysElapsed,
+    officerNote: extra?.officerNote,
+    officerProofUrl: extra?.officerProofUrl,
+    isDeclined: extra?.isDeclined
+  });
   revalidatePath("/");
   revalidatePath("/complaints");
 }
