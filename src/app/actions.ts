@@ -17,19 +17,25 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 // Helper to run a promise with a timeout and fallback
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
   let timeoutId: NodeJS.Timeout;
-  const timeoutPromise = new Promise<T>((resolve) => {
+  const timeoutPromise = new Promise<T>((_, reject) => {
     timeoutId = setTimeout(() => {
-      console.warn(`Gemini API call timed out after ${timeoutMs}ms. Using fallback.`);
-      resolve(fallback);
+      const msg = `Gemini API call timed out after ${timeoutMs}ms.`;
+      console.warn(msg);
+      reject(new Error(msg));
     }, timeoutMs);
   });
 
   try {
     const result = await Promise.race([promise, timeoutPromise]);
     if (timeoutId!) clearTimeout(timeoutId);
+    console.log("GEMINI API CALL SUCCESS: Returning live LLM result.");
     return result;
   } catch (error) {
-    console.error("Gemini API call failed, using fallback:", error);
+    console.error("GEMINI API CALL FAILED:", error);
+    if (process.env.NODE_ENV === "development") {
+      throw error;
+    }
+    console.log("GEMINI API CALL FALLBACK: Returning mock fallback response.");
     return fallback;
   }
 }
@@ -44,13 +50,16 @@ export async function parseVoiceTranscript(payload: { audioBase64?: string; text
   };
 
   if (!genAI) {
-    console.log("No GEMINI_API_KEY found, using static fallback.");
+    console.log("No GEMINI_API_KEY found.");
+    if (process.env.NODE_ENV === "development") {
+      throw new Error("GEMINI_API_KEY environment variable is missing.");
+    }
     return fallbackResponse;
   }
 
   const promise = (async () => {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-3.5-flash",
       generationConfig: { responseMimeType: "application/json" }
     });
 
@@ -94,7 +103,7 @@ Output format:
     };
   })();
 
-  return withTimeout(promise, 3000, fallbackResponse);
+  return withTimeout(promise, process.env.NODE_ENV === "development" ? 25000 : 3000, fallbackResponse);
 }
 
 // 2. Document Generation (RTI or Writ)
@@ -125,12 +134,15 @@ export async function generateDocumentDraft(complaintId: string) {
   };
 
   if (!genAI) {
-    console.log("No GEMINI_API_KEY found, using local template replacement.");
+    console.log("No GEMINI_API_KEY found.");
+    if (process.env.NODE_ENV === "development") {
+      throw new Error("GEMINI_API_KEY environment variable is missing.");
+    }
     return fallbackDoc;
   }
 
   const promise = (async () => {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     const prompt = `You are a legal document assistant. draft a legal document for this civic complaint:
 Complaint ID: ${id}
 Category: ${category}
@@ -163,7 +175,7 @@ Format the output strictly as JSON:
     };
   })();
 
-  return withTimeout(promise, 3000, fallbackDoc);
+  return withTimeout(promise, process.env.NODE_ENV === "development" ? 25000 : 3000, fallbackDoc);
 }
 
 // 3. Create Complaint in DB
