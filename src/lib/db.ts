@@ -248,10 +248,18 @@ export async function saveComplaint(complaint: Complaint): Promise<void> {
 }
 
 export async function updateComplaint(id: string, updates: Partial<Complaint>): Promise<void> {
+  // Strip undefined values to prevent Admin SDK errors
+  const cleanUpdates: Record<string, unknown> = {};
+  Object.entries(updates).forEach(([key, val]) => {
+    if (val !== undefined) {
+      cleanUpdates[key] = val;
+    }
+  });
+
   if (adminDb) {
     try {
       console.log("[DB PATH] updateComplaint: Updating Firestore using Firebase Admin SDK.");
-      await adminDb.collection("complaints").doc(id).update(updates);
+      await adminDb.collection("complaints").doc(id).update(cleanUpdates);
       return;
     } catch (e) {
       console.error("[DB PATH] updateComplaint: Error updating using Admin SDK:", e instanceof Error ? e.message : String(e));
@@ -260,7 +268,7 @@ export async function updateComplaint(id: string, updates: Partial<Complaint>): 
     try {
       console.log("[DB PATH] updateComplaint: Updating Firestore using Firebase Client SDK.");
       const docRef = doc(db, "complaints", id);
-      await updateDoc(docRef, updates);
+      await updateDoc(docRef, cleanUpdates);
       return;
     } catch (e) {
       console.error("[DB PATH] updateComplaint: Error updating using Client SDK:", e);
@@ -273,7 +281,7 @@ export async function updateComplaint(id: string, updates: Partial<Complaint>): 
     console.log("[DB PATH] updateComplaint: Updating persistent mock file-based database.");
     mockDb[id] = {
       ...mockDb[id],
-      ...updates
+      ...cleanUpdates
     };
     writeMockDb(mockDb);
   }
