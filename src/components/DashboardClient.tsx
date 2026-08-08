@@ -732,31 +732,34 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
 
                   return (
                     <div key={st.key} className="flex flex-col items-center flex-1 relative group">
-                      {/* Connection Line */}
-                      {index < stagesList.length - 1 && (
-                        <div 
-                          className={`absolute top-[15px] left-[calc(50%+15px)] w-[calc(100%-30px)] h-[2px] z-0 transition-colors ${
-                            isReached && currentStageIndex > index 
-                              ? "bg-gradient-to-r from-ember-500 to-ember-600" 
-                              : "bg-ink-600"
-                          }`}
-                        />
-                      )}
+                      {/* Icon container of exact size (30px height / full width) to vertically center line and icon */}
+                      <div className="relative flex items-center justify-center h-[30px] w-full">
+                        {/* Connection Line */}
+                        {index < stagesList.length - 1 && (
+                          <div 
+                            className={`absolute left-[calc(50%+15px)] top-1/2 -translate-y-1/2 w-[calc(100%-30px)] h-[2px] z-0 transition-colors ${
+                              isReached && currentStageIndex > index 
+                                ? "bg-gradient-to-r from-ember-500 to-ember-600" 
+                                : "bg-ink-600"
+                            }`}
+                          />
+                        )}
 
-                      {/* Flame SVGs */}
-                      <svg
-                        className={`w-7.5 h-7.5 z-10 transition-all duration-500 ${
-                          isReached 
-                            ? "opacity-100 text-ember-500 drop-shadow-[0_0_6px_var(--ember-glow)]" 
-                            : isResolvedState 
-                              ? "opacity-40 text-sage-500" 
-                              : "opacity-30 text-ink-600"
-                        }`}
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <path d="M12 2C12 2 7 7.5 7 12.5C7 16 9.5 19 12 19C14.5 19 17 16 17 12.5C17 10.8 16.2 9.5 15.3 8.3C15.6 10 15 11 14 11.5C14.3 9.5 13.5 7 12 2Z" />
-                      </svg>
+                        {/* Flame SVGs */}
+                        <svg
+                          className={`w-[30px] h-[30px] z-10 transition-all duration-500 ${
+                            isReached 
+                              ? "opacity-100 text-ember-500 drop-shadow-[0_0_6px_var(--ember-glow)]" 
+                              : isResolvedState 
+                                ? "opacity-40 text-sage-500" 
+                                : "opacity-30 text-ink-600"
+                          }`}
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M12 2C12 2 7 7.5 7 12.5C7 16 9.5 19 12 19C14.5 19 17 16 17 12.5C17 10.8 16.2 9.5 15.3 8.3C15.6 10 15 11 14 11.5C14.3 9.5 13.5 7 12 2Z" />
+                        </svg>
+                      </div>
 
                       {/* Step Text Label */}
                       <div className="text-[10px] text-text-500 text-center mt-2 max-w-[66px] leading-tight font-sans transition-colors">
