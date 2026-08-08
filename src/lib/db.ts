@@ -13,6 +13,8 @@ import {
   Firestore
 } from "firebase/firestore";
 import { adminDb } from "./firebaseAdmin";
+import fs from "fs";
+import path from "path";
 
 export interface Complaint {
   complaintId: string;
@@ -140,15 +142,40 @@ const MOCK_COMPLAINTS: Complaint[] = [
   }
 ];
 
-const globalForDb = globalThis as unknown as {
-  mockComplaints: Record<string, Complaint>;
-};
+const MOCK_FILE_PATH = path.join(process.cwd(), "src/lib/mock_db.json");
 
-if (!globalForDb.mockComplaints) {
-  globalForDb.mockComplaints = {};
+function readMockDb(): Record<string, Complaint> {
+  try {
+    if (fs.existsSync(MOCK_FILE_PATH)) {
+      const data = fs.readFileSync(MOCK_FILE_PATH, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Error reading mock DB file:", e);
+  }
+  
+  // Seed initial data if file does not exist
+  const initial: Record<string, Complaint> = {};
   MOCK_COMPLAINTS.forEach((c) => {
-    globalForDb.mockComplaints[c.complaintId] = { ...c };
+    initial[c.complaintId] = { 
+      ...c, 
+      createdAt: new Date(Date.now() - c.daysElapsed * 24 * 60 * 60 * 1000).toISOString()
+    };
   });
+  try {
+    fs.writeFileSync(MOCK_FILE_PATH, JSON.stringify(initial, null, 2), "utf8");
+  } catch (e) {
+    console.error("Error writing initial mock DB:", e);
+  }
+  return initial;
+}
+
+function writeMockDb(data: Record<string, Complaint>) {
+  try {
+    fs.writeFileSync(MOCK_FILE_PATH, JSON.stringify(data, null, 2), "utf8");
+  } catch (e) {
+    console.error("Error writing mock DB file:", e);
+  }
 }
 
 export async function getComplaints(): Promise<Complaint[]> {
@@ -167,9 +194,9 @@ export async function getComplaints(): Promise<Complaint[]> {
     }
   }
   
-  console.log("[DB PATH] getComplaints: Querying in-memory mock fallback database.");
-  // Mock DB implementation
-  return Object.values(globalForDb.mockComplaints).sort(
+  console.log("[DB PATH] getComplaints: Querying persistent mock file-based database.");
+  const mockDb = readMockDb();
+  return Object.values(mockDb).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
@@ -189,7 +216,8 @@ export async function getComplaintById(id: string): Promise<Complaint | null> {
   }
   
   // Mock DB implementation
-  return globalForDb.mockComplaints[id] || null;
+  const mockDb = readMockDb();
+  return mockDb[id] || null;
 }
 
 export async function saveComplaint(complaint: Complaint): Promise<void> {
@@ -213,8 +241,10 @@ export async function saveComplaint(complaint: Complaint): Promise<void> {
   }
   
   // Mock DB implementation
-  console.log("[DB PATH] saveComplaint: Writing to in-memory mock fallback database.");
-  globalForDb.mockComplaints[complaint.complaintId] = { ...complaint };
+  console.log("[DB PATH] saveComplaint: Writing to persistent mock file-based database.");
+  const mockDb = readMockDb();
+  mockDb[complaint.complaintId] = { ...complaint };
+  writeMockDb(mockDb);
 }
 
 export async function updateComplaint(id: string, updates: Partial<Complaint>): Promise<void> {
@@ -238,12 +268,14 @@ export async function updateComplaint(id: string, updates: Partial<Complaint>): 
   }
   
   // Mock DB implementation
-  if (globalForDb.mockComplaints[id]) {
-    console.log("[DB PATH] updateComplaint: Updating in-memory mock fallback database.");
-    globalForDb.mockComplaints[id] = {
-      ...globalForDb.mockComplaints[id],
+  const mockDb = readMockDb();
+  if (mockDb[id]) {
+    console.log("[DB PATH] updateComplaint: Updating persistent mock file-based database.");
+    mockDb[id] = {
+      ...mockDb[id],
       ...updates
     };
+    writeMockDb(mockDb);
   }
 }
 
@@ -287,11 +319,11 @@ export async function clearAllComplaints(): Promise<void> {
       console.error("[DB PATH] clearAllComplaints: Error clearing Firestore using Client SDK:", e);
     }
   } else {
-    console.log("[DB PATH] clearAllComplaints: Clearing in-memory mock fallback database.");
+    console.log("[DB PATH] clearAllComplaints: Clearing persistent mock file-based database.");
   }
   
-  // Genuinely clear in-memory mock DB
-  globalForDb.mockComplaints = {};
+  // Genuinely clear mock DB file
+  writeMockDb({});
 }
 
 export async function seedDemoData(): Promise<void> {
@@ -309,15 +341,16 @@ export async function seedDemoData(): Promise<void> {
       console.error("[DB PATH] seedDemoData: Error seeding Firestore:", e);
     }
   } else {
-    console.log("[DB PATH] seedDemoData: Seeding mock complaints to in-memory mock fallback database.");
+    console.log("[DB PATH] seedDemoData: Seeding mock complaints to persistent mock file-based database.");
   }
 
-  // Always seed to mock db
-  globalForDb.mockComplaints = {};
+  // Seed to mock db file
+  const seeded: Record<string, Complaint> = {};
   MOCK_COMPLAINTS.forEach((c) => {
-    globalForDb.mockComplaints[c.complaintId] = { 
+    seeded[c.complaintId] = { 
       ...c, 
       createdAt: new Date(Date.now() - c.daysElapsed * 24 * 60 * 60 * 1000).toISOString() 
     };
   });
+  writeMockDb(seeded);
 }

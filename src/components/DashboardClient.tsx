@@ -13,7 +13,7 @@ import {
 } from "@/app/actions";
 import { Complaint } from "@/lib/db";
 import { useLanguage } from "@/components/LanguageContext";
-import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle, AlertOctagon, ShieldAlert } from "lucide-react";
+import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle, AlertOctagon, ShieldAlert, Clock } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 interface DashboardClientProps {
@@ -866,26 +866,72 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                 </div>
               )}
 
-              {/* Status Explanation Box */}
-              <div className="bg-ink-700 border border-border rounded-lg p-3 text-[13px] text-text-300 leading-relaxed mt-4 font-sans">
-                {complaint.stage === "resolved" && complaint.isDeclined ? (
-                  <span 
-                    dangerouslySetInnerHTML={{ 
-                      __html: lang === "en" 
-                        ? "<strong>Grievance Declined.</strong> The authority rejected this complaint. Please inspect the declination note and reason provided below."
-                        : "<strong>புகார் நிராகரிக்கப்பட்டது.</strong> இந்த புகாரை வார்டு அதிகாரி நிராகரித்துள்ளார். கீழே உள்ள நிராகரிப்பு காரணத்தை சரிபார்க்கவும்."
-                    }} 
-                  />
-                ) : (
-                  <span 
-                    dangerouslySetInnerHTML={{ 
-                      __html: lang === "en" 
-                        ? statusNotes[complaint.stage].en 
-                        : statusNotes[complaint.stage].ta 
-                    }} 
-                  />
-                )}
-              </div>
+              {/* Status Explanation Box (Restyled & Premium) */}
+              {(() => {
+                const statusStyles: Record<Complaint["stage"], { border: string; bg: string; text: string; icon: React.ComponentType<{ className?: string }> }> = {
+                  filed: { 
+                    border: "border-l-2 border-l-calm-300 border-border/40", 
+                    bg: "bg-ink-700/30", 
+                    text: "text-text-200",
+                    icon: Clock
+                  },
+                  internal_alert: { 
+                    border: "border-l-2 border-l-ember-500 border-border/40", 
+                    bg: "bg-ember-500/5", 
+                    text: "text-ember-500",
+                    icon: AlertOctagon
+                  },
+                  rti_triggered: { 
+                    border: "border-l-2 border-l-ember-600 border-border/40", 
+                    bg: "bg-ember-600/5", 
+                    text: "text-text-100",
+                    icon: FileText
+                  },
+                  escalated: { 
+                    border: "border-l-2 border-l-ember-600 border-border/40", 
+                    bg: "bg-ember-600/5", 
+                    text: "text-text-100",
+                    icon: ShieldAlert
+                  },
+                  resolved: { 
+                    border: "border-l-2 border-l-sage-500 border-border/40", 
+                    bg: "bg-sage-500/5", 
+                    text: "text-sage-500",
+                    icon: CheckCircle
+                  }
+                };
+                
+                const activeStyle = statusStyles[complaint.stage];
+                const borderClass = complaint.isDeclined ? "border-l-2 border-l-red-500 border-border/40" : activeStyle.border;
+                const bgClass = complaint.isDeclined ? "bg-red-500/5" : activeStyle.bg;
+                const textClass = complaint.isDeclined ? "text-red-400" : activeStyle.text;
+                const StatusIcon = complaint.isDeclined ? AlertOctagon : activeStyle.icon;
+
+                return (
+                  <div className={`border rounded-lg p-3.5 flex items-start gap-3 mt-4 leading-relaxed font-sans transition-all ${borderClass} ${bgClass}`}>
+                    <StatusIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${textClass}`} />
+                    <span className={`text-[12.5px] ${textClass}`}>
+                      {complaint.stage === "resolved" && complaint.isDeclined ? (
+                        <span 
+                          dangerouslySetInnerHTML={{ 
+                            __html: lang === "en" 
+                              ? "<strong>Grievance Declined.</strong> The authority rejected this complaint. Please inspect the declination note and reason provided below."
+                              : "<strong>புகார் நிராகரிக்கப்பட்டது.</strong> இந்த புகாரை வார்டு அதிகாரி நிராகரித்துள்ளார். கீழே உள்ள நிராகரிப்பு காரணத்தை சரிபார்க்கவும்."
+                          }} 
+                        />
+                      ) : (
+                        <span 
+                          dangerouslySetInnerHTML={{ 
+                            __html: lang === "en" 
+                              ? statusNotes[complaint.stage].en 
+                              : statusNotes[complaint.stage].ta 
+                          }} 
+                        />
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* Attached Citizen Media */}
               {complaint.attachedMediaUrl && (
