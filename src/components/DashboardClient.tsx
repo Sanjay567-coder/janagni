@@ -11,7 +11,7 @@ import {
   resetDemoAction
 } from "@/app/actions";
 import { Complaint } from "@/lib/db";
-import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle } from "lucide-react";
+import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 interface DashboardClientProps {
@@ -28,6 +28,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
   const [showIntake, setShowIntake] = useState<boolean>(!initialComplaint);
 
   // Voice Intake State
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingLabel, setRecordingLabel] = useState("");
   const [showTranscriptBox, setShowTranscriptBox] = useState(false);
@@ -101,23 +102,33 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-          const base64Data = reader.result as string;
-          const base64Clean = base64Data.split(",")[1];
+          try {
+            setErrorMessage(null);
+            const base64Data = reader.result as string;
+            const base64Clean = base64Data.split(",")[1];
 
-          setIsProcessingIntake(true);
-          setRecordingLabel(lang === "en" ? "Analyzing audio..." : "ஆடியோவை பகுப்பாய்வு செய்கிறது...");
+            setIsProcessingIntake(true);
+            setRecordingLabel(lang === "en" ? "Analyzing audio..." : "ஆடியோவை பகுப்பாய்வு செய்கிறது...");
 
-          const result = await parseVoiceTranscript({ audioBase64: base64Clean });
-          setTranscript(result.transcript);
-          setChips({
-            category: result.category,
-            wardDetails: result.location,
-            severity: result.severity
-          });
+            const result = await parseVoiceTranscript({ audioBase64: base64Clean });
+            setTranscript(result.transcript);
+            setChips({
+              category: result.category,
+              wardDetails: result.location,
+              severity: result.severity
+            });
 
-          setIsProcessingIntake(false);
-          setRecordingLabel(lang === "en" ? "Got it — review below" : "விவரங்கள் பெறப்பட்டன - சரிபார்க்கவும்");
-          setShowTranscriptBox(true);
+            setIsProcessingIntake(false);
+            setRecordingLabel(lang === "en" ? "Got it — review below" : "விவரங்கள் பெறப்பட்டன - சரிபார்க்கவும்");
+            setShowTranscriptBox(true);
+          } catch (e: unknown) {
+            const err = e as Error;
+            console.error("Failed to parse voice transcript:", err);
+            setIsProcessingIntake(false);
+            setRecordingLabel(lang === "en" ? "Failed to analyze. Please type below." : "பகுப்பாய்வு தோல்வி. தட்டச்சு செய்க.");
+            setShowTranscriptBox(true);
+            setErrorMessage(err.message || String(err));
+          }
         };
       };
 
@@ -153,32 +164,40 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
 
   // Submit Text/Intake Complaint
   const handleFileComplaint = async () => {
-    setIsProcessingIntake(true);
-    let finalTranscript = transcript;
-    let finalCategory = chips.category;
-    let finalWard = chips.wardDetails;
-    let finalSeverity = chips.severity;
+    try {
+      setErrorMessage(null);
+      setIsProcessingIntake(true);
+      let finalTranscript = transcript;
+      let finalCategory = chips.category;
+      let finalWard = chips.wardDetails;
+      let finalSeverity = chips.severity;
 
-    // If the user modified the text, re-parse to clean it up and find proper chips
-    if (transcript.trim().length > 0) {
-      const parsed = await parseVoiceTranscript({ text: transcript });
-      finalTranscript = parsed.transcript;
-      finalCategory = parsed.category;
-      finalWard = parsed.location;
-      finalSeverity = parsed.severity;
+      // If the user modified the text, re-parse to clean it up and find proper chips
+      if (transcript.trim().length > 0) {
+        const parsed = await parseVoiceTranscript({ text: transcript });
+        finalTranscript = parsed.transcript;
+        finalCategory = parsed.category;
+        finalWard = parsed.location;
+        finalSeverity = parsed.severity;
+      }
+
+      const newId = await createComplaintAction({
+        transcript: finalTranscript,
+        category: finalCategory,
+        wardDetails: finalWard,
+        severity: finalSeverity
+      });
+
+      setIsProcessingIntake(false);
+      setShowTranscriptBox(false);
+      setTranscript("");
+      router.push(`/?id=${newId}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error("Failed to file complaint:", err);
+      setIsProcessingIntake(false);
+      setErrorMessage(err.message || String(err));
     }
-
-    const newId = await createComplaintAction({
-      transcript: finalTranscript,
-      category: finalCategory,
-      wardDetails: finalWard,
-      severity: finalSeverity
-    });
-
-    setIsProcessingIntake(false);
-    setShowTranscriptBox(false);
-    setTranscript("");
-    router.push(`/?id=${newId}`);
   };
 
   // Document Draft Fetching
@@ -390,6 +409,16 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
               </span>
             )}
           </p>
+
+          {errorMessage && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-custom p-4 mb-6 text-sm text-red-400 font-sans leading-relaxed animate-fade-in flex gap-3 items-start shadow-lg">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-text-100 font-semibold block mb-0.5 font-sans">Configuration Error Registered</strong>
+                <span className="font-mono text-xs block break-words max-w-[300px]">{errorMessage}</span>
+              </div>
+            </div>
+          )}
 
           {/* Voice Mic Button */}
           <div className="flex flex-col items-center mb-8">
