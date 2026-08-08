@@ -44,17 +44,35 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function cleanAndParseJson(text: string): any {
   // Strip code fences if present
-  let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
   
-  // Extract only the JSON object boundaries
   const firstBrace = cleaned.indexOf('{');
-  const lastBrace = cleaned.lastIndexOf('}');
-  
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  if (firstBrace === -1) {
+    throw new Error("No opening brace found in response.");
   }
   
-  return JSON.parse(cleaned);
+  // Find the exact matching closing brace
+  let braceCount = 0;
+  let lastBrace = -1;
+  
+  for (let i = firstBrace; i < cleaned.length; i++) {
+    if (cleaned[i] === '{') {
+      braceCount++;
+    } else if (cleaned[i] === '}') {
+      braceCount--;
+      if (braceCount === 0) {
+        lastBrace = i;
+        break;
+      }
+    }
+  }
+  
+  if (lastBrace === -1) {
+    throw new Error("No matching closing brace found.");
+  }
+  
+  const jsonString = cleaned.substring(firstBrace, lastBrace + 1);
+  return JSON.parse(jsonString);
 }
 
 // 1. Parse Voice/Text Intake
