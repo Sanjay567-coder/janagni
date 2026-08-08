@@ -188,33 +188,53 @@ export async function getComplaintById(id: string): Promise<Complaint | null> {
 }
 
 export async function saveComplaint(complaint: Complaint): Promise<void> {
-  if (db) {
+  if (adminDb) {
     try {
+      console.log("[DB PATH] saveComplaint: Writing to Firestore using Firebase Admin SDK.");
+      await adminDb.collection("complaints").doc(complaint.complaintId).set(complaint);
+      return;
+    } catch (e) {
+      console.error("[DB PATH] saveComplaint: Error saving using Admin SDK:", e instanceof Error ? e.message : String(e));
+    }
+  } else if (db) {
+    try {
+      console.log("[DB PATH] saveComplaint: Writing to Firestore using Firebase Client SDK.");
       const docRef = doc(db, "complaints", complaint.complaintId);
       await setDoc(docRef, complaint);
       return;
     } catch (e) {
-      console.error("Error saving complaint to Firestore:", e);
+      console.error("[DB PATH] saveComplaint: Error saving using Client SDK:", e);
     }
   }
   
   // Mock DB implementation
+  console.log("[DB PATH] saveComplaint: Writing to in-memory mock fallback database.");
   globalForDb.mockComplaints[complaint.complaintId] = { ...complaint };
 }
 
 export async function updateComplaint(id: string, updates: Partial<Complaint>): Promise<void> {
-  if (db) {
+  if (adminDb) {
     try {
+      console.log("[DB PATH] updateComplaint: Updating Firestore using Firebase Admin SDK.");
+      await adminDb.collection("complaints").doc(id).update(updates);
+      return;
+    } catch (e) {
+      console.error("[DB PATH] updateComplaint: Error updating using Admin SDK:", e instanceof Error ? e.message : String(e));
+    }
+  } else if (db) {
+    try {
+      console.log("[DB PATH] updateComplaint: Updating Firestore using Firebase Client SDK.");
       const docRef = doc(db, "complaints", id);
       await updateDoc(docRef, updates);
       return;
     } catch (e) {
-      console.error("Error updating complaint in Firestore:", e);
+      console.error("[DB PATH] updateComplaint: Error updating using Client SDK:", e);
     }
   }
   
   // Mock DB implementation
   if (globalForDb.mockComplaints[id]) {
+    console.log("[DB PATH] updateComplaint: Updating in-memory mock fallback database.");
     globalForDb.mockComplaints[id] = {
       ...globalForDb.mockComplaints[id],
       ...updates
