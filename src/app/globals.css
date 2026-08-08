@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(228, 87, 46, 0.10), transparent 60%), #0F1218;
+    color: #EDEEF3;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
+
+@keyframes jn-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(228, 87, 46, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 22px rgba(228, 87, 46, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(228, 87, 46, 0);
+  }
+}
+
+@keyframes jn-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse-glow {
+  animation: jn-pulse 1.4s ease-out infinite;
+}
+
+.animate-fade-in {
+  animation: jn-fade 0.35s ease forwards;
+}
+
