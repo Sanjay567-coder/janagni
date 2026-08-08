@@ -41,6 +41,22 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cleanAndParseJson(text: string): any {
+  // Strip code fences if present
+  let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  
+  // Extract only the JSON object boundaries
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  
+  return JSON.parse(cleaned);
+}
+
 // 1. Parse Voice/Text Intake
 export async function parseVoiceTranscript(payload: { audioBase64?: string; text?: string }) {
   const fallbackResponse = {
@@ -96,17 +112,24 @@ Output format:
     try {
       const result = await model.generateContent(contents);
       const responseText = result.response.text();
-      console.log("[GEMINI CALL] parseVoiceTranscript: Success. Response length:", responseText.length);
-      const parsed = JSON.parse(responseText);
+      console.log("[GEMINI CALL] parseVoiceTranscript: Raw response text:\n", responseText);
       
-      return {
-        transcript: parsed.transcript || fallbackResponse.transcript,
-        category: parsed.category || fallbackResponse.category,
-        location: parsed.location || fallbackResponse.location,
-        severity: parsed.severity || fallbackResponse.severity,
-      };
+      try {
+        const parsed = cleanAndParseJson(responseText);
+        console.log("[GEMINI CALL] parseVoiceTranscript: Clean parse success.");
+        return {
+          transcript: parsed.transcript || fallbackResponse.transcript,
+          category: parsed.category || fallbackResponse.category,
+          location: parsed.location || fallbackResponse.location,
+          severity: parsed.severity || fallbackResponse.severity,
+        };
+      } catch (parseError) {
+        console.error("[GEMINI CALL] parseVoiceTranscript: JSON Parse failed. Error:", parseError instanceof Error ? parseError.message : String(parseError));
+        console.log("[GEMINI CALL] parseVoiceTranscript: Returning template fallback.");
+        return fallbackResponse;
+      }
     } catch (err) {
-      console.error("[GEMINI CALL] parseVoiceTranscript: Error occurred:", err instanceof Error ? err.message : String(err));
+      console.error("[GEMINI CALL] parseVoiceTranscript: API call error:", err instanceof Error ? err.message : String(err));
       throw err;
     }
   })();
@@ -150,7 +173,10 @@ export async function generateDocumentDraft(complaintId: string) {
   }
 
   const promise = (async () => {
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
     const prompt = `You are a legal document assistant. draft a legal document for this civic complaint:
 Complaint ID: ${id}
 Category: ${category}
@@ -173,19 +199,24 @@ Format the output strictly as JSON:
     try {
       const result = await model.generateContent(prompt);
       const responseText = result.response.text();
-      console.log("[GEMINI CALL] generateDocumentDraft: Success. Response length:", responseText.length);
-      // Clean response text in case LLM wraps it in markdown code block
-      const cleanedJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanedJson);
-
-      return {
-        eyebrow: parsed.eyebrow || fallbackDoc.eyebrow,
-        title: parsed.title || fallbackDoc.title,
-        body: parsed.body || fallbackDoc.body,
-        cite: parsed.cite || fallbackDoc.cite
-      };
+      console.log("[GEMINI CALL] generateDocumentDraft: Raw response text:\n", responseText);
+      
+      try {
+        const parsed = cleanAndParseJson(responseText);
+        console.log("[GEMINI CALL] generateDocumentDraft: Clean parse success.");
+        return {
+          eyebrow: parsed.eyebrow || fallbackDoc.eyebrow,
+          title: parsed.title || fallbackDoc.title,
+          body: parsed.body || fallbackDoc.body,
+          cite: parsed.cite || fallbackDoc.cite
+        };
+      } catch (parseError) {
+        console.error("[GEMINI CALL] generateDocumentDraft: JSON Parse failed. Error:", parseError instanceof Error ? parseError.message : String(parseError));
+        console.log("[GEMINI CALL] generateDocumentDraft: Returning template fallback.");
+        return fallbackDoc;
+      }
     } catch (err) {
-      console.error("[GEMINI CALL] generateDocumentDraft: Error occurred:", err instanceof Error ? err.message : String(err));
+      console.error("[GEMINI CALL] generateDocumentDraft: API call error:", err instanceof Error ? err.message : String(err));
       throw err;
     }
   })();
