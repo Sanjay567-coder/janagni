@@ -258,18 +258,42 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       const nextStage = stages[currentIdx + 1];
       const daysElapsedMap = [0, 30, 37, 45, 46];
       const nextDays = daysElapsedMap[currentIdx + 1];
+      
+      // Optimistic local state update for instant UI transition
+      setComplaint({
+        ...complaint,
+        stage: nextStage,
+        daysElapsed: nextDays
+      });
+
       await updateComplaintStageAction(complaint.complaintId, nextStage, nextDays);
+      router.refresh();
     }
   };
 
   const handleResetComplaint = async () => {
     if (!complaint) return;
+    const now = new Date();
+    
+    // Optimistic local state update for instant UI transition
+    setComplaint({
+      ...complaint,
+      stage: "filed",
+      createdAt: now.toISOString(),
+      slaDeadline: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      daysElapsed: 0
+    });
+
     await resetComplaintAction(complaint.complaintId);
+    router.refresh();
   };
 
   const handleResetDemoDb = async () => {
+    setComplaint(null);
+    setShowIntake(true);
     await resetDemoAction();
     router.push("/");
+    router.refresh();
   };
 
   // Stepper UI Calculations
