@@ -53,27 +53,96 @@ if (hasFirebaseConfig) {
   console.log("No Firebase environment variables found. Using in-memory mock database.");
 }
 
-// In-memory fallback setup
-const DEFAULT_COMPLAINT: Complaint = {
-  complaintId: "GCC-2026-89412",
-  transcript: "Open sewage overflow near the bus stop, Ward 172, Velachery. It's been like this for three weeks and nobody's come to look at it.",
-  category: "Sanitation & Drainage",
-  wardDetails: "Ward 172 · Velachery, Chennai",
-  severity: "High",
-  stage: "filed",
-  createdAt: new Date().toISOString(),
-  slaDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  daysElapsed: 0,
-};
+// Seed data array
+const MOCK_COMPLAINTS: Complaint[] = [
+  {
+    complaintId: "GCC-2026-89412",
+    transcript: "Open sewage overflow near the bus stop, Ward 172, Velachery. It's been like this for three weeks and nobody's come to look at it.",
+    category: "Sanitation & Drainage",
+    wardDetails: "Ward 172 · Velachery, Chennai",
+    severity: "High",
+    stage: "filed",
+    createdAt: new Date().toISOString(),
+    slaDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 0,
+  },
+  {
+    complaintId: "GCC-2026-87411",
+    transcript: "Huge pothole near the Adyar flyover junction. Several two-wheelers have skidded here during night. Urgent repair needed.",
+    category: "Roads & Potholes",
+    wardDetails: "Ward 170 · Adyar, Chennai",
+    severity: "Medium",
+    stage: "internal_alert",
+    createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 32,
+  },
+  {
+    complaintId: "GCC-2026-85103",
+    transcript: "Entire street corner near the beach road has three streetlights completely dead. It gets very dark and unsafe after 7 PM.",
+    category: "Streetlights",
+    wardDetails: "Ward 175 · Thiruvanmiyur, Chennai",
+    severity: "Low",
+    stage: "rti_triggered",
+    createdAt: new Date(Date.now() - 37 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 37,
+  },
+  {
+    complaintId: "GCC-2026-81990",
+    transcript: "Commercial garbage piling up on the pavement of 2nd cross street, attracting stray dogs and cattle. Blocking public access.",
+    category: "Garbage Disposal",
+    wardDetails: "Ward 178 · Besant Nagar, Chennai",
+    severity: "High",
+    stage: "escalated",
+    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 45,
+  },
+  {
+    complaintId: "GCC-2026-79920",
+    transcript: "Hanging electrical cables from the transformer near the children's playground. Major hazard during monsoon season.",
+    category: "Public Safety",
+    wardDetails: "Ward 180 · Kotturpuram, Chennai",
+    severity: "Medium",
+    stage: "resolved",
+    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 12,
+  },
+  {
+    complaintId: "GCC-2026-75122",
+    transcript: "Clogged stormwater drains causing severe road inundation even after minor rain. Water entering ground floor residential houses.",
+    category: "Sanitation & Drainage",
+    wardDetails: "Ward 172 · Velachery, Chennai",
+    severity: "High",
+    stage: "filed",
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 2,
+  },
+  {
+    complaintId: "GCC-2026-72301",
+    transcript: "Broken pavement tiles and exposed iron rebar on the pedestrian walk path near the metro station entrance. Risk to elderly walkers.",
+    category: "Roads & Potholes",
+    wardDetails: "Ward 171 · Guindy, Chennai",
+    severity: "Medium",
+    stage: "resolved",
+    createdAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
+    slaDeadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    daysElapsed: 28,
+  }
+];
 
 const globalForDb = globalThis as unknown as {
   mockComplaints: Record<string, Complaint>;
 };
 
 if (!globalForDb.mockComplaints) {
-  globalForDb.mockComplaints = {
-    [DEFAULT_COMPLAINT.complaintId]: { ...DEFAULT_COMPLAINT }
-  };
+  globalForDb.mockComplaints = {};
+  MOCK_COMPLAINTS.forEach((c) => {
+    globalForDb.mockComplaints[c.complaintId] = { ...c };
+  });
 }
 
 export async function getComplaints(): Promise<Complaint[]> {
@@ -85,10 +154,12 @@ export async function getComplaints(): Promise<Complaint[]> {
       snapshot.forEach((docSnap) => {
         complaints.push(docSnap.data() as Complaint);
       });
-      // If Firestore is empty, seed it with the default complaint
+      // If Firestore is empty, seed it with the mock complaints
       if (complaints.length === 0) {
-        await saveComplaint(DEFAULT_COMPLAINT);
-        complaints.push(DEFAULT_COMPLAINT);
+        for (const mockC of MOCK_COMPLAINTS) {
+          await saveComplaint(mockC);
+          complaints.push(mockC);
+        }
       }
       return complaints;
     } catch (e) {
@@ -180,7 +251,11 @@ export async function clearAllComplaints(): Promise<void> {
   }
   
   // Mock DB implementation
-  globalForDb.mockComplaints = {
-    [DEFAULT_COMPLAINT.complaintId]: { ...DEFAULT_COMPLAINT, createdAt: new Date().toISOString() }
-  };
+  globalForDb.mockComplaints = {};
+  MOCK_COMPLAINTS.forEach((c) => {
+    globalForDb.mockComplaints[c.complaintId] = { 
+      ...c, 
+      createdAt: new Date(Date.now() - c.daysElapsed * 24 * 60 * 60 * 1000).toISOString() 
+    };
+  });
 }

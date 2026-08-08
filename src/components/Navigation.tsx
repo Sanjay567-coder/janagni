@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, ShieldAlert } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function Navigation() {
   const pathname = usePathname();
+  const { language, t } = useLanguage();
 
   if (pathname === "/onboarding") return null;
 
@@ -19,37 +21,46 @@ export default function Navigation() {
         {/* Home */}
         <Link 
           href="/"
-          className={`flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors ${
+          className={`flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500 rounded ${
             isHome ? "text-ember-500" : "text-text-500 hover:text-text-300"
           }`}
+          aria-label={t("navHome")}
         >
           <Home className="w-5 h-5" />
-          <span className="text-[10px] font-medium tracking-wide uppercase font-sans">Home</span>
+          <span className={`text-[10px] font-semibold tracking-wider uppercase ${language === "ta" ? "font-tamil" : "font-sans"}`}>
+            {t("navHome")}
+          </span>
         </Link>
 
         {/* My Complaints */}
         <Link 
           href="/complaints"
-          className={`flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors ${
+          className={`flex flex-col items-center gap-1 flex-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500 rounded ${
             isComplaints ? "text-ember-500" : "text-text-500 hover:text-text-300"
           }`}
+          aria-label={t("navComplaints")}
         >
           <ClipboardList className="w-5 h-5" />
-          <span className="text-[10px] font-medium tracking-wide uppercase font-sans">Complaints</span>
+          <span className={`text-[10px] font-semibold tracking-wider uppercase ${language === "ta" ? "font-tamil" : "font-sans"}`}>
+            {t("navComplaints")}
+          </span>
         </Link>
 
         {/* Officer View (Demo-only) */}
         <Link 
           href="/officer"
-          className={`flex flex-col items-center gap-1 flex-1 py-1.5 relative transition-colors ${
+          className={`flex flex-col items-center gap-1 flex-1 py-1.5 relative transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500 rounded ${
             isOfficer ? "text-ember-500" : "text-text-500 hover:text-text-300"
           }`}
+          aria-label={t("navOfficer")}
         >
-          <span className="absolute -top-1.5 right-1/2 translate-x-8 text-[7px] bg-ember-600 text-text-100 font-bold px-1 rounded-full uppercase scale-90">
+          <span className="absolute -top-1.5 right-1/2 translate-x-8 text-[7px] bg-ember-600 text-text-100 font-bold px-1.5 py-0.5 rounded-full uppercase scale-90">
             Demo
           </span>
           <ShieldAlert className="w-5 h-5" />
-          <span className="text-[10px] font-medium tracking-wide uppercase font-sans">Officer</span>
+          <span className={`text-[10px] font-semibold tracking-wider uppercase ${language === "ta" ? "font-tamil" : "font-sans"}`}>
+            {t("navOfficer")}
+          </span>
         </Link>
       </div>
     </nav>

@@ -11,6 +11,7 @@ import {
   resetDemoAction
 } from "@/app/actions";
 import { Complaint } from "@/lib/db";
+import { useLanguage } from "@/components/LanguageContext";
 import { Mic, ArrowRight, RefreshCw, X, FileText, PlusCircle, CheckCircle, AlertTriangle } from "lucide-react";
 import { jsPDF } from "jspdf";
 
@@ -21,7 +22,16 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ initialComplaint, complaintsCount }: DashboardClientProps) {
   const router = useRouter();
-  const [lang, setLang] = useState<"en" | "ta">("en");
+  const { language: lang, t } = useLanguage();
+  const [toast, setToast] = useState<{ message: string; type: "success" | "info" } | null>(null);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
+
+  const showToast = (message: string, type: "success" | "info" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 2500);
+  };
   
   // Complaint State
   const [complaint, setComplaint] = useState<Complaint | null>(initialComplaint);
@@ -57,12 +67,23 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
   // Load language preference
   useEffect(() => {
     const saved = localStorage.getItem("janagni_lang");
-    if (saved === "ta" || saved === "en") {
-      setLang(saved);
-    } else {
+    if (!saved) {
       router.push("/onboarding");
     }
   }, [router]);
+
+  // Screen reader stage changes announcement
+  useEffect(() => {
+    if (complaint) {
+      const stageText = 
+        complaint.stage === "filed" ? "Filed" :
+        complaint.stage === "internal_alert" ? "Supervisory Nudge Active" :
+        complaint.stage === "rti_triggered" ? "RTI Application Drafted" :
+        complaint.stage === "escalated" ? "Escalated to Writ Petition" :
+        "Complaint Resolved";
+      setLiveAnnouncement(`Complaint status updated to: ${stageText}`);
+    }
+  }, [complaint]);
 
   // Synchronize component state with prop updates (e.g. from Server Action revalidations)
   useEffect(() => {
@@ -219,23 +240,46 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       format: "a4"
     });
 
-    // Header Metadata
-    doc.setFont("helvetica", "bold");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // 1. Header / Letterhead
+    doc.setFont("times", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(138, 90, 46);
-    doc.text(documentData.eyebrow, 20, 20);
+    doc.setTextColor(138, 90, 46); // Ember theme color
+    doc.text("JANAGNI CIVIC COMPLIANCE RECORD", pageWidth / 2, 16, { align: "center" });
 
-    // Document Title
-    doc.setFontSize(15);
-    doc.setTextColor(28, 28, 28);
-    doc.text(documentData.title, 20, 30);
+    doc.setFont("times", "italic");
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Statutory Document generated via JanAgni Civic Portal under G.O. (Ms) No. 99", pageWidth / 2, 21, { align: "center" });
 
-    // Decorative Line
-    doc.setLineWidth(0.5);
+    // Header Divider
+    doc.setLineWidth(0.4);
     doc.setDrawColor(216, 211, 196);
-    doc.line(20, 35, 190, 35);
+    doc.line(margin, 24, pageWidth - margin, 24);
 
-    // Clean body HTML tags
+    // 2. Document Title
+    doc.setFont("times", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(28, 28, 28);
+    const splitTitle = doc.splitTextToSize(documentData.title.toUpperCase(), contentWidth);
+    doc.text(splitTitle, pageWidth / 2, 33, { align: "center" });
+
+    // Subheader / Reference Metas
+    doc.setFont("times", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Reference ID: ${complaint?.complaintId || "GCC-AUDIT"}`, margin, 45);
+    doc.text(`Date of Action: ${new Date().toLocaleDateString("en-IN")}`, pageWidth - margin, 45, { align: "right" });
+
+    // Content Divider
+    doc.setLineWidth(0.15);
+    doc.line(margin, 48, pageWidth - margin, 48);
+
+    // 3. Document Body content
     const cleanBody = documentData.body
       .replace(/<p>/g, "")
       .replace(/<\/p>/g, "\n\n")
@@ -246,29 +290,81 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       .replace(/<br\s*\/?>/gi, "\n")
       .trim();
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
     doc.setTextColor(42, 42, 42);
 
-    const splitText = doc.splitTextToSize(cleanBody, 170);
-    doc.text(splitText, 20, 45);
+    const splitText = doc.splitTextToSize(cleanBody, contentWidth);
+    let yPos = 56;
 
-    // Citations Footer
-    doc.line(20, 255, 190, 255);
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9.5);
+    splitText.forEach((line: string) => {
+      // Avoid page overflow by checking bottom margin bounds
+      if (yPos > pageHeight - margin - 35) {
+        doc.addPage();
+        // Repeating Header for subsequent pages
+        doc.setFont("times", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(138, 90, 46);
+        doc.text("JANAGNI CIVIC COMPLIANCE RECORD", pageWidth / 2, 16, { align: "center" });
+        doc.setDrawColor(216, 211, 196);
+        doc.line(margin, 18, pageWidth - margin, 18);
+        doc.setFont("times", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(42, 42, 42);
+        yPos = 26;
+      }
+      doc.text(line, margin, yPos);
+      yPos += 6.5;
+    });
+
+    // 4. Citation Footer Section
+    yPos += 8;
+    if (yPos > pageHeight - margin - 30) {
+      doc.addPage();
+      yPos = 26;
+    }
+
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(216, 211, 196);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 6;
+
+    doc.setFont("times", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(28, 28, 28);
+    doc.text("STATUTORY CITATION & AUTHORITY JUDGMENT:", margin, yPos);
+    yPos += 5.5;
+
+    doc.setFont("times", "italic");
+    doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
-    const splitCite = doc.splitTextToSize(documentData.cite, 170);
-    doc.text(splitCite, 20, 260);
 
-    doc.setFont("helvetica", "normal");
+    const splitCite = doc.splitTextToSize(documentData.cite, contentWidth);
+    splitCite.forEach((line: string) => {
+      if (yPos > pageHeight - margin - 12) {
+        doc.addPage();
+        yPos = 26;
+      }
+      doc.text(line, margin, yPos);
+      yPos += 4.5;
+    });
+
+    // Signature Area
+    yPos += 8;
+    if (yPos > pageHeight - margin) {
+      doc.addPage();
+      yPos = 26;
+    }
+    doc.setFont("times", "normal");
+    doc.setFontSize(10);
     doc.setTextColor(120, 120, 120);
-    doc.text("Citizen Signature: Digitally Authorized via JanAgni", 20, 275);
+    doc.text("Citizen Signature: Digitally Authorized via JanAgni", margin, yPos);
 
-    doc.save(`${documentData.title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.pdf`);
+    doc.save(`JanAgni_${complaint?.complaintId || "escalation"}.pdf`);
+    showToast("Document downloaded as PDF!", "success");
   };
 
-  // Demo Time Advance State Machine
+  // Demo Time Advance State Machine (Sequential)
   const handleAdvanceTime = async () => {
     if (!complaint) return;
     const stages: Complaint["stage"][] = ["filed", "internal_alert", "rti_triggered", "escalated", "resolved"];
@@ -278,7 +374,6 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       const daysElapsedMap = [0, 30, 37, 45, 46];
       const nextDays = daysElapsedMap[currentIdx + 1];
       
-      // Optimistic local state update for instant UI transition
       setComplaint({
         ...complaint,
         stage: nextStage,
@@ -286,15 +381,38 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       });
 
       await updateComplaintStageAction(complaint.complaintId, nextStage, nextDays);
+      showToast(`Time advanced to ${nextStage.toUpperCase()}!`, "info");
       router.refresh();
     }
+  };
+
+  // Direct Jump to any stage
+  const handleJumpToStage = async (newStage: Complaint["stage"]) => {
+    if (!complaint) return;
+    const daysElapsedMap: Record<Complaint["stage"], number> = {
+      filed: 0,
+      internal_alert: 30,
+      rti_triggered: 37,
+      escalated: 45,
+      resolved: 46
+    };
+    const nextDays = daysElapsedMap[newStage];
+    
+    setComplaint({
+      ...complaint,
+      stage: newStage,
+      daysElapsed: nextDays
+    });
+
+    await updateComplaintStageAction(complaint.complaintId, newStage, nextDays);
+    showToast(`Time jumped to stage: ${newStage.toUpperCase()}`, "info");
+    router.refresh();
   };
 
   const handleResetComplaint = async () => {
     if (!complaint) return;
     const now = new Date();
     
-    // Optimistic local state update for instant UI transition
     setComplaint({
       ...complaint,
       stage: "filed",
@@ -304,6 +422,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
     });
 
     await resetComplaintAction(complaint.complaintId);
+    showToast("Demo environment reset!", "info");
     router.refresh();
   };
 
@@ -364,10 +483,52 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
     }
   };
 
+  const getTranslatedCategory = (category: string) => {
+    if (lang === "ta") {
+      switch (category) {
+        case "Sanitation & Drainage": return "சுகாதாரம் மற்றும் வடிகால்";
+        case "Roads & Potholes": return "சாலைகள் மற்றும் பள்ளங்கள்";
+        case "Streetlights": return "தெருவிளக்குகள்";
+        case "Garbage Disposal": return "குப்பை அகற்றுதல்";
+        case "Public Safety": return "பொது பாதுகாப்பு";
+        default: return category;
+      }
+    }
+    return category;
+  };
+
+  const getTranslatedLocation = (location: string) => {
+    if (lang === "ta") {
+      return location
+        .replace("Ward", "வார்டு")
+        .replace("Velachery", "வேளச்சேரி")
+        .replace("Adyar", "அடையாறு")
+        .replace("Thiruvanmiyur", "திருவான்மியூர்")
+        .replace("Besant Nagar", "பெசன்ட் நகர்")
+        .replace("Kotturpuram", "கோட்டூர்புரம்")
+        .replace("Guindy", "கிண்டி")
+        .replace("Chennai", "சென்னை");
+    }
+    return location;
+  };
+
   const activeColor = complaint ? ringColors[complaint.stage] : "#5B8AA6";
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className={`flex flex-col flex-1 ${lang === "ta" ? "font-tamil" : ""}`}>
+      {/* Toast Notifications */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink-800 border border-border px-4 py-2.5 rounded-full text-xs font-mono text-text-100 flex items-center gap-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)] animate-fade-in">
+          <span className={`w-2 h-2 rounded-full ${toast.type === "success" ? "bg-sage-500 shadow-[0_0_8px_rgba(127,166,135,0.6)]" : "bg-ember-500 shadow-[0_0_8px_rgba(245,166,35,0.6)]"}`} />
+          {toast.message}
+        </div>
+      )}
+
+      {/* Screen Reader Live Announcements */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {liveAnnouncement}
+      </div>
+
       {/* Brand Header */}
       <div className="flex items-center gap-2.5 mb-7">
         <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24" fill="none">
@@ -381,9 +542,11 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
           </defs>
         </svg>
         <div>
-          <div className="font-fraunces text-[21px] font-semibold tracking-wide">JanAgni</div>
+          <div className={`text-[21px] font-semibold tracking-wide ${lang === "ta" ? "font-bold font-tamil" : "font-fraunces"}`}>
+            {t("brandTitle")}
+          </div>
           <div className="text-[10px] text-text-500 tracking-wider uppercase font-sans">
-            {lang === "en" ? "Civic escalation, automated" : <span className="font-tamil">தானியங்கி குறைதீர் தளம்</span>}
+            {t("brandSub")}
           </div>
         </div>
       </div>
@@ -391,23 +554,17 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       {/* 1. INTAKE UI */}
       {showIntake ? (
         <div className="animate-fade-in flex flex-col flex-1">
-          <h1 className="font-fraunces text-[28px] sm:text-[32px] font-semibold leading-[1.2] mb-3">
+          <h1 className={`text-[28px] sm:text-[32px] font-semibold leading-[1.2] mb-3 ${lang === "ta" ? "font-bold font-tamil" : "font-fraunces"}`}>
             {lang === "en" ? (
               <>Report it once.<br />Let the <em className="text-ember-500 not-italic">fire</em> stay on it.</>
             ) : (
-              <span className="font-tamil leading-tight">
+              <span className="leading-tight">
                 ஒரு முறை புகாரளிக்கவும்.<br />தொடர் <em className="text-ember-500 not-italic">அக்னியை</em> வையுங்கள்.
               </span>
             )}
           </h1>
-          <p className="text-text-300 text-[14px] sm:text-[15px] leading-relaxed mb-8 max-w-[38ch]">
-            {lang === "en" ? (
-              "Speak or type your complaint. JanAgni tracks statutory deadlines and escalates automatically if authorities fail to act."
-            ) : (
-              <span className="font-tamil">
-                உங்கள் புகாரை தமிழ் அல்லது ஆங்கிலத்தில் கூறலாம். அதிகாரிகள் நடவடிக்கை எடுக்கத் தவறினால் ஜனஅக்னி சட்டப்படி வழக்கை நகர்த்தும்.
-              </span>
-            )}
+          <p className="text-text-300 text-[14px] sm:text-[15px] leading-relaxed mb-8 max-w-[38ch] font-sans">
+            {t("heroSub")}
           </p>
 
           {errorMessage && (
@@ -427,8 +584,8 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
               disabled={isProcessingIntake}
               className={`w-[88px] height-[88px] h-[88px] rounded-full flex items-center justify-center bg-gradient-to-br from-ember-500 to-ember-600 transition-transform ${
                 isRecording ? "animate-pulse-glow" : "hover:scale-[1.04]"
-              } focus:outline-none focus:ring-2 focus:ring-text-100 focus:ring-offset-4 focus:ring-offset-ink-900`}
-              aria-label="Tap to speak complaint"
+              } focus:outline-none focus:ring-2 focus:ring-text-100 focus:ring-offset-4 focus:ring-offset-ink-900 active:scale-[0.98]`}
+              aria-label={recordingLabel}
             >
               <Mic className="w-7 h-7 text-ink-900" />
             </button>
@@ -441,7 +598,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
           {(showTranscriptBox || transcript.length > 0) && (
             <div className="bg-ink-800 border border-border rounded-custom p-4 mb-4 animate-fade-in">
               <div className="text-[11px] text-text-500 uppercase tracking-widest mb-2 font-mono">
-                {lang === "en" ? "Review & Edit Complaint" : <span className="font-tamil">புகார் விவரங்களை சரிபார்க்கவும்</span>}
+                {t("transcriptBoxTitle")}
               </div>
               <textarea
                 value={transcript}
@@ -449,19 +606,20 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                   setTranscript(e.target.value);
                   if (!showTranscriptBox) setShowTranscriptBox(true);
                 }}
-                className="w-full bg-transparent border-none text-text-100 font-sans text-[14.5px] leading-relaxed resize-y min-h-[80px] p-0 focus:outline-none focus:ring-0"
+                className="w-full bg-transparent border-none text-text-100 font-sans text-[14.5px] leading-relaxed resize-y min-h-[80px] p-0 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 placeholder={lang === "en" ? "Enter complaint text..." : "புகாரை தட்டச்சு செய்யவும்..."}
               />
               
               <div className="flex flex-wrap gap-2 mt-3.5">
                 <span className="text-[12px] px-3 py-1 rounded-full bg-ink-700 border border-border text-calm-300 font-mono">
-                  {chips.category}
+                  {getTranslatedCategory(chips.category)}
                 </span>
                 <span className="text-[12px] px-3 py-1 rounded-full bg-ink-700 border border-border text-text-300 font-mono">
-                  {chips.wardDetails}
+                  {getTranslatedLocation(chips.wardDetails)}
                 </span>
                 <span className="text-[12px] px-3 py-1 rounded-full bg-ink-700 border border-border text-text-300 font-mono">
-                  Severity: {chips.severity}
+                  {lang === "ta" ? "தீவிரம்: " : "Severity: "}
+                  {lang === "ta" ? (chips.severity === "High" ? "அதிதீவிரம்" : chips.severity === "Medium" ? "நடுத்தரம்" : "குறைவு") : chips.severity}
                 </span>
               </div>
             </div>
@@ -474,9 +632,10 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                 setShowTranscriptBox(true);
                 setTranscript("Open sewage overflow near the bus stop, Ward 172, Velachery. It's been like this for three weeks and nobody's come to look at it.");
               }}
-              className="text-center text-text-500 hover:text-text-300 text-xs mb-8 underline font-mono"
+              className="text-center text-text-500 hover:text-text-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500 rounded px-2 py-1 text-xs mb-8 underline font-mono transition-colors"
+              aria-label={t("typeFallbackLink")}
             >
-              {lang === "en" ? "Or type complaint details manually" : "அல்லது புகாரை நேரடியாக தட்டச்சு செய்ய"}
+              {t("typeFallbackLink")}
             </button>
           )}
 
@@ -485,16 +644,16 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
             <button
               onClick={handleFileComplaint}
               disabled={isProcessingIntake}
-              className="w-full py-4 rounded-full bg-text-100 text-ink-900 font-semibold text-[14.5px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              className="w-full py-4 rounded-full bg-text-100 text-ink-900 font-bold text-[14.5px] flex items-center justify-center gap-2 hover:bg-text-300 hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 active:scale-[0.99]"
             >
               {isProcessingIntake ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  {lang === "en" ? "Processing..." : "செயலாக்குகிறது..."}
+                  {t("fileBtnProcessing")}
                 </>
               ) : (
                 <>
-                  {lang === "en" ? "File this complaint" : <span className="font-tamil font-bold">புகாரை பதிவு செய்க</span>}
+                  <span>{t("fileBtnLabel")}</span>
                   <ArrowRight className="w-4.5 h-4.5" />
                 </>
               )}
@@ -504,9 +663,9 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
           {complaintsCount > 0 && (
             <button
               onClick={() => setShowIntake(false)}
-              className="mt-6 text-center text-xs text-calm-300 hover:underline font-mono"
+              className="mt-6 text-center text-xs text-calm-300 hover:text-calm-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-calm-500 rounded px-2 py-1 font-mono transition-colors"
             >
-              ← Back to Active Grievance
+              {t("backToActiveGrievanceBtn")}
             </button>
           )}
         </div>
@@ -514,26 +673,29 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
         /* 2. Grievance Status Dashboard */
         <div className="animate-fade-in flex flex-col flex-1">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xs uppercase tracking-widest text-text-500 font-mono">Active Complaint</h2>
+            <h2 className="text-xs uppercase tracking-widest text-text-500 font-mono">{t("activeGrievanceTitle")}</h2>
             <button
               onClick={() => setShowIntake(true)}
-              className="text-xs text-ember-500 hover:text-ember-600 font-medium flex items-center gap-1.5"
+              className="text-xs text-ember-500 hover:text-ember-600 font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500 rounded px-1.5 py-0.5 transition-colors"
+              aria-label={t("reportNewGrievanceBtn")}
             >
               <PlusCircle className="w-4 h-4" />
-              {lang === "en" ? "Report New" : <span className="font-tamil">புதிய புகார்</span>}
+              {t("reportNewGrievanceBtn")}
             </button>
           </div>
 
           {complaint && (
-            <div className="bg-ink-800 border border-border rounded-custom p-5.5 mb-6 relative">
+            <div className="bg-ink-800 border border-border rounded-custom p-5.5 mb-6 relative shadow-lg">
               {/* Card Top */}
               <div className="flex justify-between items-start gap-4 mb-4">
                 <div className="flex-1">
                   <div className="font-mono text-[12.5px] text-text-500">{complaint.complaintId}</div>
-                  <h3 className="font-fraunces text-[18px] sm:text-[19px] font-semibold text-text-100 mt-1 leading-snug">
-                    {complaint.category}
+                  <h3 className={`text-[18px] sm:text-[19px] font-semibold text-text-100 mt-1 leading-snug ${lang === "ta" ? "font-bold" : "font-fraunces"}`}>
+                    {getTranslatedCategory(complaint.category)}
                   </h3>
-                  <div className="text-[13px] text-text-300 mt-1">{complaint.wardDetails}</div>
+                  <div className="text-[13px] text-text-300 mt-1 font-sans">
+                    {getTranslatedLocation(complaint.wardDetails)}
+                  </div>
                 </div>
 
                 {/* SLA Circular Ring Indicator */}
@@ -555,8 +717,8 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                     <div className="font-mono text-[20px] sm:text-[22px] font-semibold leading-none text-text-100">
                       {complaint.stage === "resolved" ? "0" : Math.max(maxSlaDays - daysElapsed, 0)}
                     </div>
-                    <div className="text-[8.5px] text-text-500 uppercase tracking-wider mt-1 font-sans">
-                      {lang === "en" ? "Days Left" : <span className="font-tamil">நாட்கள்</span>}
+                    <div className="text-[8.5px] text-text-500 uppercase tracking-wider mt-1 font-sans font-semibold">
+                      {t("daysLeftLabel")}
                     </div>
                   </div>
                 </div>
@@ -621,7 +783,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                 <button
                   onClick={handleOpenDocModal}
                   disabled={isGeneratingDoc}
-                  className="mt-4.5 w-full py-2.5 rounded-full border border-border text-[13px] font-semibold text-text-100 flex items-center justify-center gap-1.5 hover:bg-ink-700 transition-colors"
+                  className="mt-4.5 w-full py-2.5 rounded-full border border-border text-[13px] font-semibold text-text-100 flex items-center justify-center gap-1.5 hover:bg-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 transition-colors"
                 >
                   {isGeneratingDoc ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -629,8 +791,8 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                     <FileText className="w-3.5 h-3.5" />
                   )}
                   {complaint.stage === "rti_triggered" 
-                    ? "📄 View RTI application" 
-                    : "📄 View writ petition"
+                    ? t("viewDocRti") 
+                    : t("viewDocWrit")
                   }
                 </button>
               )}
@@ -639,10 +801,10 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
               {complaint.stage === "resolved" && (
                 <button
                   onClick={() => router.push(`/resolution/${complaint.complaintId}`)}
-                  className="mt-4.5 w-full py-3 rounded-full bg-sage-500 text-ink-900 font-bold text-[13.5px] flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+                  className="mt-4.5 w-full py-3 rounded-full bg-sage-500 text-ink-900 font-bold text-[13.5px] flex items-center justify-center gap-1.5 hover:bg-sage-500/85 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 shadow-[0_4px_15px_rgba(127,166,135,0.25)] active:scale-[0.99]"
                 >
                   <CheckCircle className="w-4 h-4" />
-                  {lang === "en" ? "Verify Fix & Give Feedback" : <span className="font-tamil">தீர்வினை சரிபார்</span>}
+                  {t("verifyResolutionBtn")}
                 </button>
               )}
             </div>
@@ -650,30 +812,52 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
         </div>
       )}
 
-      {/* Floating Demo Dock Panel */}
+      {/* Floating Demo Control Dock Panel */}
       {!showIntake && complaint && (
-        <div className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 bg-ink-800/95 backdrop-blur border border-border rounded-full py-1.5 pl-4 pr-1.5 flex items-center gap-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] z-40 max-w-[calc(100vw-32px)]">
-          <span className="text-[10px] text-text-500 uppercase tracking-widest font-mono">Demo Control</span>
-          <button
-            onClick={handleAdvanceTime}
-            disabled={complaint.stage === "resolved"}
-            className="font-mono text-[11px] px-3 py-1.5 bg-ember-500 text-ink-900 font-bold rounded-full disabled:bg-ink-600 disabled:text-text-500 transition-colors hover:bg-ember-600"
-          >
-            {complaint.stage === "resolved" ? "Resolved" : "Advance time →"}
-          </button>
-          <button
-            onClick={handleResetComplaint}
-            className="text-[11px] px-3 py-1.5 border border-border text-text-300 font-mono rounded-full hover:bg-ink-700 transition-colors"
-          >
-            Reset
-          </button>
-          <button
-            onClick={handleResetDemoDb}
-            className="text-[10px] px-2 py-1 text-text-500 hover:text-text-300 font-mono transition-colors"
-            title="Clean Database"
-          >
-            Clear DB
-          </button>
+        <div className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 bg-ink-800/95 backdrop-blur border border-border rounded-2xl py-3 px-4 flex flex-col gap-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] z-40 w-[calc(100vw-32px)] max-w-[400px]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10.5px] text-text-500 uppercase tracking-widest font-mono font-bold">
+              {t("demoControlTitle")}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleResetComplaint}
+                className="text-[10px] px-2.5 py-1 border border-border text-text-300 font-mono rounded-md hover:bg-ink-700 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500"
+              >
+                {t("demoControlReset")}
+              </button>
+              <button
+                onClick={handleResetDemoDb}
+                className="text-[10px] px-2.5 py-1 bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500"
+                title="Clean Database"
+              >
+                {t("demoControlClear")}
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 mt-0.5">
+            <button
+              onClick={handleAdvanceTime}
+              disabled={complaint.stage === "resolved"}
+              className="font-mono text-[11px] py-2 bg-ember-500 text-ink-900 font-bold rounded-lg disabled:bg-ink-600 disabled:text-text-500 transition-colors hover:bg-ember-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
+            >
+              {complaint.stage === "resolved" ? (lang === "ta" ? "முடிந்தது" : "Resolved") : t("demoControlAdvance")}
+            </button>
+            
+            <select
+              value={complaint.stage}
+              onChange={(e) => handleJumpToStage(e.target.value as Complaint["stage"])}
+              className="bg-ink-700 border border-border rounded-lg text-[11px] font-mono text-text-100 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-ember-500 cursor-pointer"
+              aria-label="Directly jump to any timeline stage"
+            >
+              <option value="filed">Day 0: Filed</option>
+              <option value="internal_alert">Day 30: Nudge</option>
+              <option value="rti_triggered">Day 37: RTI</option>
+              <option value="escalated">Day 45: Writ</option>
+              <option value="resolved">Day 46: Resolved</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -691,6 +875,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
             <button
               onClick={() => setShowDocModal(false)}
               className="float-right text-2xl text-[#666] hover:text-[#222]"
+              aria-label={lang === "en" ? "Close preview modal" : "ஆவணப் பார்வையாளரை மூடுக"}
             >
               <X className="w-5 h-5" />
             </button>
@@ -724,6 +909,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
             <button
               onClick={downloadPdf}
               className="w-full mt-5 py-3 bg-[#8A5A2E] text-white font-bold rounded-lg text-[13.5px] hover:bg-[#6E4622] transition-colors"
+              aria-label={lang === "en" ? "Download print-ready PDF" : "பி.டி.எஃப் ஆவணம் பதிவிறக்கு"}
             >
               Download Signed PDF Document
             </button>

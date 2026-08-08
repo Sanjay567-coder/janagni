@@ -1,23 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function Onboarding() {
-  const [lang, setLang] = useState<"en" | "ta">("en");
+  const { language, setLanguage, t } = useLanguage();
   const [isExiting, setIsExiting] = useState(false);
   const router = useRouter();
 
-  // Load saved preference if exists
-  useEffect(() => {
-    const saved = localStorage.getItem("janagni_lang");
-    if (saved === "ta" || saved === "en") {
-      setLang(saved);
-    }
-  }, []);
-
   const handleContinue = () => {
-    localStorage.setItem("janagni_lang", lang);
     setIsExiting(true);
     setTimeout(() => {
       router.push("/");
@@ -28,7 +20,7 @@ export default function Onboarding() {
     <div 
       className={`flex flex-col flex-1 justify-center items-center py-10 transition-all duration-300 ease-out ${
         isExiting ? "opacity-0 scale-[0.97] blur-[2px]" : "opacity-100 scale-100 animate-fade-in"
-      }`}
+      } ${language === "ta" ? "font-tamil" : ""}`}
     >
       <div className="flex items-center gap-2.5 mb-8">
         <svg className="w-8.5 h-8.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
@@ -37,33 +29,27 @@ export default function Onboarding() {
           <defs><linearGradient id="g0" x1="7" y1="2" x2="17" y2="19"><stop stopColor="#F5A623"/><stop offset="1" stopColor="#E4572E"/></linearGradient></defs>
         </svg>
         <div>
-          <h1 className="font-fraunces text-2xl font-semibold tracking-wide">JanAgni</h1>
+          <h1 className="font-fraunces text-2xl font-semibold tracking-wide">{t("brandTitle")}</h1>
           <p className="text-[11px] text-text-500 tracking-wider uppercase font-sans">
-            Civic escalation, automated
+            {t("brandSub")}
           </p>
         </div>
       </div>
 
       <div className="w-full bg-ink-800 border border-border rounded-custom p-6 mb-8 text-center shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
-        <h2 className="font-fraunces text-xl font-medium mb-3">
-          {lang === "en" ? "Select Language" : <span className="font-tamil font-semibold">மொழி தேர்வு</span>}
+        <h2 className={`font-medium mb-3 text-xl ${language === "ta" ? "font-bold font-tamil" : "font-fraunces"}`}>
+          {t("onboardingTitle")}
         </h2>
         <p className="text-text-300 text-[13.5px] leading-relaxed mb-6 font-sans">
-          {lang === "en" ? (
-            "Speak your complaint in English or Tamil. JanAgni drafts statutory RTI requests and Article 226 legal documents automatically."
-          ) : (
-            <span className="font-tamil">
-              உங்கள் புகாரை ஆங்கிலம் அல்லது தமிழில் கூறுங்கள். ஜனஅக்னி தானியங்கி முறையில் சட்ட ரீதியிலான ஆவணங்களை உருவாக்கும்.
-            </span>
-          )}
+          {t("onboardingSub")}
         </p>
 
         {/* Buttons */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            onClick={() => setLang("en")}
+            onClick={() => setLanguage("en")}
             className={`py-4 rounded-custom border transition-all text-[14.5px] font-sans font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 ${
-              lang === "en"
+              language === "en"
                 ? "border-ember-500 bg-ink-700 text-text-100 shadow-[0_0_15px_rgba(245,166,35,0.15)]"
                 : "border-border bg-ink-800 text-text-300 hover:bg-ink-700 hover:text-text-100 hover:border-text-500"
             }`}
@@ -71,9 +57,9 @@ export default function Onboarding() {
             English
           </button>
           <button
-            onClick={() => setLang("ta")}
+            onClick={() => setLanguage("ta")}
             className={`py-4 rounded-custom border transition-all text-[14.5px] font-tamil font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 ${
-              lang === "ta"
+              language === "ta"
                 ? "border-ember-500 bg-ink-700 text-text-100 shadow-[0_0_15px_rgba(245,166,35,0.15)]"
                 : "border-border bg-ink-800 text-text-300 hover:bg-ink-700 hover:text-text-100 hover:border-text-500"
             }`}
@@ -86,12 +72,12 @@ export default function Onboarding() {
           onClick={handleContinue}
           className="w-full py-3.5 rounded-full bg-text-100 text-ink-900 font-bold hover:bg-text-300 hover:shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 active:scale-[0.99] text-[14.5px] font-sans"
         >
-          {lang === "en" ? "Continue" : <span className="font-tamil font-bold">தொடர்க</span>}
+          {t("onboardingContinue")}
         </button>
       </div>
 
-      <div className="text-[11px] text-text-500 uppercase tracking-widest text-center">
-        Sec. 6(1) RTI &amp; Art. 226 Escalation Enabled
+      <div className="text-[11px] text-text-500 uppercase tracking-widest text-center font-mono">
+        {t("onboardingFooter")}
       </div>
     </div>
   );

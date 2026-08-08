@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono, Noto_Sans_Tamil } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import { LanguageProvider } from "@/components/LanguageContext";
+import FloatingLanguageToggle from "@/components/FloatingLanguageToggle";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -44,10 +46,13 @@ export default function RootLayout({
       className={`${fraunces.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} ${notoSansTamil.variable}`}
     >
       <body className="font-sans antialiased text-text-100 min-h-dvh flex justify-center px-4 md:px-0">
-        <div className="w-full max-w-[460px] sm:max-w-[420px] pt-6 sm:pt-14 pb-[130px] flex flex-col">
-          {children}
-          <Navigation />
-        </div>
+        <LanguageProvider>
+          <div className="w-full max-w-[460px] sm:max-w-[420px] pt-6 sm:pt-14 pb-[130px] flex flex-col relative">
+            <FloatingLanguageToggle />
+            {children}
+            <Navigation />
+          </div>
+        </LanguageProvider>
       </body>
     </html>
   );
