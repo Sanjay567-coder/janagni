@@ -47,7 +47,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased text-text-100 min-h-dvh flex justify-center px-4 md:px-0">
         <LanguageProvider>
-          <div className="w-full max-w-[460px] sm:max-w-[420px] pt-6 sm:pt-14 pb-[210px] flex flex-col relative">
+          <div className="w-full max-w-[460px] sm:max-w-[420px] pt-12 sm:pt-14 pb-[210px] flex flex-col relative">
             <FloatingLanguageToggle />
             <main className="flex-1 flex flex-col animate-fade-in">
               {children}

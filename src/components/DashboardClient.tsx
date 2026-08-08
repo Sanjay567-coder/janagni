@@ -233,7 +233,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
       setTranscript("");
       setAttachedMediaUrl(null);
       setAttachedMediaType(null);
-      router.push(`/?id=${newId}`);
+      router.push(`/?id=${newId}&t=${Date.now()}`);
     } catch (e: unknown) {
       const err = e as Error;
       console.error("Failed to file complaint:", err);
@@ -403,7 +403,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
 
       await updateComplaintStageAction(complaint.complaintId, nextStage, nextDays);
       showToast(`Time advanced to ${nextStage.toUpperCase()}!`, "info");
-      router.refresh();
+      router.push(`/?id=${complaint.complaintId}&t=${Date.now()}`);
     }
   };
 
@@ -427,7 +427,7 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
 
     await updateComplaintStageAction(complaint.complaintId, newStage, nextDays);
     showToast(`Time jumped to stage: ${newStage.toUpperCase()}`, "info");
-    router.refresh();
+    router.push(`/?id=${complaint.complaintId}&t=${Date.now()}`);
   };
 
   const handleResetComplaint = async () => {
@@ -444,22 +444,21 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
 
     await resetComplaintAction(complaint.complaintId);
     showToast("Demo environment reset!", "info");
-    router.refresh();
+    router.push(`/?id=${complaint.complaintId}&t=${Date.now()}`);
   };
 
   const handleResetDemoDb = async () => {
     setComplaint(null);
     setShowIntake(true);
     await resetDemoAction();
-    router.push("/");
-    router.refresh();
+    router.push(`/?t=${Date.now()}`);
   };
 
   const handleSeedDemoDb = async () => {
     showToast("Seeding demo database...", "info");
     await seedDemoAction();
     showToast("Demo database seeded!", "success");
-    router.refresh();
+    router.push(`/?t=${Date.now()}`);
   };
 
   // Stepper UI Calculations

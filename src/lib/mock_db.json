@@ -1,0 +1,85 @@
+{
+  "GCC-2026-89412": {
+    "complaintId": "GCC-2026-89412",
+    "transcript": "Open sewage overflow near the bus stop, Ward 172, Velachery. It's been like this for three weeks and nobody's come to look at it.",
+    "category": "Sanitation & Drainage",
+    "wardDetails": "Ward 172 · Velachery, Chennai",
+    "severity": "High",
+    "stage": "resolved",
+    "createdAt": "2026-08-08T08:38:31.305Z",
+    "slaDeadline": "2026-09-07T08:38:31.296Z",
+    "daysElapsed": 0,
+    "officerNote": "Out of Limit",
+    "isDeclined": true
+  },
+  "GCC-2026-87411": {
+    "complaintId": "GCC-2026-87411",
+    "transcript": "Huge pothole near the Adyar flyover junction. Several two-wheelers have skidded here during night. Urgent repair needed.",
+    "category": "Roads & Potholes",
+    "wardDetails": "Ward 170 · Adyar, Chennai",
+    "severity": "Medium",
+    "stage": "internal_alert",
+    "createdAt": "2026-07-07T08:38:31.305Z",
+    "slaDeadline": "2026-08-06T08:38:31.296Z",
+    "daysElapsed": 32,
+    "officerNote": "Zonal Commissioner priority directive: Resolve immediately within grace window.",
+    "isDeclined": false
+  },
+  "GCC-2026-85103": {
+    "complaintId": "GCC-2026-85103",
+    "transcript": "Entire street corner near the beach road has three streetlights completely dead. It gets very dark and unsafe after 7 PM.",
+    "category": "Streetlights",
+    "wardDetails": "Ward 175 · Thiruvanmiyur, Chennai",
+    "severity": "Low",
+    "stage": "rti_triggered",
+    "createdAt": "2026-07-02T08:38:31.305Z",
+    "slaDeadline": "2026-08-01T08:38:31.296Z",
+    "daysElapsed": 37
+  },
+  "GCC-2026-81990": {
+    "complaintId": "GCC-2026-81990",
+    "transcript": "Commercial garbage piling up on the pavement of 2nd cross street, attracting stray dogs and cattle. Blocking public access.",
+    "category": "Garbage Disposal",
+    "wardDetails": "Ward 178 · Besant Nagar, Chennai",
+    "severity": "High",
+    "stage": "escalated",
+    "createdAt": "2026-06-24T08:38:31.305Z",
+    "slaDeadline": "2026-07-24T08:38:31.296Z",
+    "daysElapsed": 45
+  },
+  "GCC-2026-79920": {
+    "complaintId": "GCC-2026-79920",
+    "transcript": "Hanging electrical cables from the transformer near the children's playground. Major hazard during monsoon season.",
+    "category": "Public Safety",
+    "wardDetails": "Ward 180 · Kotturpuram, Chennai",
+    "severity": "Medium",
+    "stage": "resolved",
+    "createdAt": "2026-07-27T08:38:31.305Z",
+    "slaDeadline": "2026-08-26T08:38:31.296Z",
+    "daysElapsed": 12
+  },
+  "GCC-2026-75122": {
+    "complaintId": "GCC-2026-75122",
+    "transcript": "Clogged stormwater drains causing severe road inundation even after minor rain. Water entering ground floor residential houses.",
+    "category": "Sanitation & Drainage",
+    "wardDetails": "Ward 172 · Velachery, Chennai",
+    "severity": "High",
+    "stage": "resolved",
+    "createdAt": "2026-08-06T08:38:31.305Z",
+    "slaDeadline": "2026-09-05T08:38:31.296Z",
+    "daysElapsed": 2,
+    "officerNote": "completed",
+    "isDeclined": false
+  },
+  "GCC-2026-72301": {
+    "complaintId": "GCC-2026-72301",
+    "transcript": "Broken pavement tiles and exposed iron rebar on the pedestrian walk path near the metro station entrance. Risk to elderly walkers.",
+    "category": "Roads & Potholes",
+    "wardDetails": "Ward 171 · Guindy, Chennai",
+    "severity": "Medium",
+    "stage": "resolved",
+    "createdAt": "2026-07-11T08:38:31.305Z",
+    "slaDeadline": "2026-08-10T08:38:31.296Z",
+    "daysElapsed": 28
+  }
+}

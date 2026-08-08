@@ -195,7 +195,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
       officerNote: "Zonal Commissioner priority directive: Resolve immediately within grace window.",
       isDeclined: false
     });
-    router.refresh();
+    router.push(`/officer?t=${Date.now()}`);
   };
 
   return (
@@ -601,7 +601,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
                       officerProofUrl: officerProofUrl || undefined,
                       isDeclined: true
                     });
-                    router.refresh();
+                    router.push(`/officer?t=${Date.now()}`);
                   }}
                   className="py-3 bg-[#D37A6A] hover:bg-[#B55F50] text-white font-bold rounded-lg text-[13.5px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                 >
@@ -621,7 +621,7 @@ export default function OfficerClient({ complaints }: OfficerClientProps) {
                       officerProofUrl: officerProofUrl || undefined,
                       isDeclined: false
                     });
-                    router.refresh();
+                    router.push(`/officer?t=${Date.now()}`);
                   }}
                   className="py-3 bg-[#7FA687] text-white hover:bg-[#688D70] font-bold rounded-lg text-[13.5px] transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                 >

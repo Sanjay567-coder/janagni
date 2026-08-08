@@ -328,8 +328,14 @@ export async function submitResolutionFeedbackAction(id: string, isFixed: boolea
     // Verified resolved
     await updateComplaint(id, { stage: "resolved" });
   } else {
-    // Revert back to escalated (Writ petition active) at 45 days
-    await updateComplaint(id, { stage: "escalated", daysElapsed: 45 });
+    // Revert back to escalated (Writ petition active) at 45 days, and clear resolution proofs/declination flags
+    await updateComplaint(id, { 
+      stage: "escalated", 
+      daysElapsed: 45,
+      isDeclined: false,
+      officerNote: undefined,
+      officerProofUrl: undefined
+    });
   }
   revalidatePath("/");
   revalidatePath("/complaints");
