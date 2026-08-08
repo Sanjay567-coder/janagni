@@ -29,7 +29,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
   try {
     const result = await Promise.race([promise, timeoutPromise]);
     if (timeoutId!) clearTimeout(timeoutId);
-    console.log("GEMINI API CALL SUCCESS: Returning live LLM result.");
+    console.log("[TIMEOUT GUARD] API call promise resolved within timeout limit.");
     return result;
   } catch (error) {
     console.error("GEMINI API CALL FAILED:", error);
@@ -116,7 +116,7 @@ Output format:
       
       try {
         const parsed = cleanAndParseJson(responseText);
-        console.log("[GEMINI CALL] parseVoiceTranscript: Clean parse success.");
+        console.log("[GEMINI CALL] parseVoiceTranscript: Clean parse success. Returning live LLM result.");
         return {
           transcript: parsed.transcript || fallbackResponse.transcript,
           category: parsed.category || fallbackResponse.category,
@@ -125,7 +125,7 @@ Output format:
         };
       } catch (parseError) {
         console.error("[GEMINI CALL] parseVoiceTranscript: JSON Parse failed. Error:", parseError instanceof Error ? parseError.message : String(parseError));
-        console.log("[GEMINI CALL] parseVoiceTranscript: Returning template fallback.");
+        console.log("[GEMINI CALL] parseVoiceTranscript: Clean parse failed. Returning mock template response.");
         return fallbackResponse;
       }
     } catch (err) {
@@ -203,7 +203,7 @@ Format the output strictly as JSON:
       
       try {
         const parsed = cleanAndParseJson(responseText);
-        console.log("[GEMINI CALL] generateDocumentDraft: Clean parse success.");
+        console.log("[GEMINI CALL] generateDocumentDraft: Clean parse success. Returning live LLM result.");
         return {
           eyebrow: parsed.eyebrow || fallbackDoc.eyebrow,
           title: parsed.title || fallbackDoc.title,
@@ -212,7 +212,7 @@ Format the output strictly as JSON:
         };
       } catch (parseError) {
         console.error("[GEMINI CALL] generateDocumentDraft: JSON Parse failed. Error:", parseError instanceof Error ? parseError.message : String(parseError));
-        console.log("[GEMINI CALL] generateDocumentDraft: Returning template fallback.");
+        console.log("[GEMINI CALL] generateDocumentDraft: Clean parse failed. Returning mock template response.");
         return fallbackDoc;
       }
     } catch (err) {
