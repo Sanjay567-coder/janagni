@@ -272,6 +272,7 @@ export async function createComplaintAction(formData: {
   await saveComplaint(complaint);
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
   return newId;
 }
 
@@ -295,6 +296,7 @@ export async function updateComplaintStageAction(
   });
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
 }
 
 // 5. Reset Single Complaint
@@ -302,6 +304,7 @@ export async function resetComplaintAction(id: string) {
   await resetComplaintToFiled(id);
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
 }
 
 // 6. Reset/Seed Demo
@@ -309,12 +312,14 @@ export async function resetDemoAction() {
   await clearAllComplaints();
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
 }
 
 export async function seedDemoAction() {
   await seedDemoData();
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
 }
 
 // 7. Submit Resolution Feedback
@@ -328,5 +333,6 @@ export async function submitResolutionFeedbackAction(id: string, isFixed: boolea
   }
   revalidatePath("/");
   revalidatePath("/complaints");
+  revalidatePath("/officer");
 }
 

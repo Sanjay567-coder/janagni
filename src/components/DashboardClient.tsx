@@ -972,62 +972,62 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
               )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Floating Demo Control Dock Panel */}
-      {!showIntake && complaint && (
-        <div className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 bg-ink-800/95 backdrop-blur border border-border rounded-2xl py-3 px-4 flex flex-col gap-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)] z-40 w-[calc(100vw-32px)] max-w-[400px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[10.5px] text-text-500 uppercase tracking-widest font-mono font-bold">
-              {t("demoControlTitle")}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleResetComplaint}
-                className="text-[10px] px-2.5 py-1 border border-border text-text-300 font-mono rounded-md hover:bg-ink-700 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500"
-              >
-                {t("demoControlReset")}
-              </button>
-              <button
-                onClick={handleResetDemoDb}
-                className="text-[10px] px-2.5 py-1 bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500"
-                title="Clean Database"
-              >
-                {t("demoControlClear")}
-              </button>
-              <button
-                onClick={handleSeedDemoDb}
-                className="text-[10px] px-2.5 py-1 bg-green-950/20 border border-green-900/30 text-green-400 hover:bg-green-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-green-500"
-                title="Seed Database"
-              >
-                {lang === "ta" ? "விதைக்க" : "Seed"}
-              </button>
+          {/* Demo Control Card (Inline, flows under status card) */}
+          {!showIntake && complaint && (
+            <div className="bg-ink-800/40 border border-border/60 rounded-custom p-4 flex flex-col gap-2.5 shadow-md w-full mt-1.5 mb-6 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] text-text-500 uppercase tracking-widest font-mono font-bold">
+                  {t("demoControlTitle")}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResetComplaint}
+                    className="text-[10px] px-2.5 py-1 border border-border text-text-300 font-mono rounded-md hover:bg-ink-700 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ember-500"
+                  >
+                    {t("demoControlReset")}
+                  </button>
+                  <button
+                    onClick={handleResetDemoDb}
+                    className="text-[10px] px-2.5 py-1 bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-500"
+                    title="Clean Database"
+                  >
+                    {t("demoControlClear")}
+                  </button>
+                  <button
+                    onClick={handleSeedDemoDb}
+                    className="text-[10px] px-2.5 py-1 bg-green-950/20 border border-green-900/30 text-green-400 hover:bg-green-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-green-500"
+                    title="Seed Database"
+                  >
+                    {lang === "ta" ? "விதைக்க" : "Seed"}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 mt-0.5">
+                <button
+                  onClick={handleAdvanceTime}
+                  disabled={complaint.stage === "resolved"}
+                  className="font-mono text-[11px] py-2 bg-ember-500 text-ink-900 font-bold rounded-lg disabled:bg-ink-600 disabled:text-text-500 transition-colors hover:bg-ember-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
+                >
+                  {complaint.stage === "resolved" ? (lang === "ta" ? "முடிந்தது" : "Resolved") : t("demoControlAdvance")}
+                </button>
+                
+                <select
+                  value={complaint.stage}
+                  onChange={(e) => handleJumpToStage(e.target.value as Complaint["stage"])}
+                  className="bg-ink-700 border border-border rounded-lg text-[11px] font-mono text-text-100 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-ember-500 cursor-pointer"
+                  aria-label="Directly jump to any timeline stage"
+                >
+                  <option value="filed">Day 0: Filed</option>
+                  <option value="internal_alert">Day 30: Nudge</option>
+                  <option value="rti_triggered">Day 37: RTI</option>
+                  <option value="escalated">Day 45: Writ</option>
+                  <option value="resolved">Day 46: Resolved</option>
+                </select>
+              </div>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 mt-0.5">
-            <button
-              onClick={handleAdvanceTime}
-              disabled={complaint.stage === "resolved"}
-              className="font-mono text-[11px] py-2 bg-ember-500 text-ink-900 font-bold rounded-lg disabled:bg-ink-600 disabled:text-text-500 transition-colors hover:bg-ember-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
-            >
-              {complaint.stage === "resolved" ? (lang === "ta" ? "முடிந்தது" : "Resolved") : t("demoControlAdvance")}
-            </button>
-            
-            <select
-              value={complaint.stage}
-              onChange={(e) => handleJumpToStage(e.target.value as Complaint["stage"])}
-              className="bg-ink-700 border border-border rounded-lg text-[11px] font-mono text-text-100 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-ember-500 cursor-pointer"
-              aria-label="Directly jump to any timeline stage"
-            >
-              <option value="filed">Day 0: Filed</option>
-              <option value="internal_alert">Day 30: Nudge</option>
-              <option value="rti_triggered">Day 37: RTI</option>
-              <option value="escalated">Day 45: Writ</option>
-              <option value="resolved">Day 46: Resolved</option>
-            </select>
-          </div>
+          )}
         </div>
       )}
 
