@@ -7,6 +7,7 @@ import {
   updateComplaint, 
   resetComplaintToFiled,
   clearAllComplaints,
+  seedDemoData,
   Complaint 
 } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -91,16 +92,23 @@ Output format:
 
     contents.push(prompt);
 
-    const result = await model.generateContent(contents);
-    const responseText = result.response.text();
-    const parsed = JSON.parse(responseText);
-    
-    return {
-      transcript: parsed.transcript || fallbackResponse.transcript,
-      category: parsed.category || fallbackResponse.category,
-      location: parsed.location || fallbackResponse.location,
-      severity: parsed.severity || fallbackResponse.severity,
-    };
+    console.log("[GEMINI CALL] parseVoiceTranscript: Calling Gemini API...");
+    try {
+      const result = await model.generateContent(contents);
+      const responseText = result.response.text();
+      console.log("[GEMINI CALL] parseVoiceTranscript: Success. Response length:", responseText.length);
+      const parsed = JSON.parse(responseText);
+      
+      return {
+        transcript: parsed.transcript || fallbackResponse.transcript,
+        category: parsed.category || fallbackResponse.category,
+        location: parsed.location || fallbackResponse.location,
+        severity: parsed.severity || fallbackResponse.severity,
+      };
+    } catch (err) {
+      console.error("[GEMINI CALL] parseVoiceTranscript: Error occurred:", err instanceof Error ? err.message : String(err));
+      throw err;
+    }
   })();
 
   return withTimeout(promise, process.env.NODE_ENV === "development" ? 25000 : 3000, fallbackResponse);
@@ -161,18 +169,25 @@ Format the output strictly as JSON:
   "cite": "Citations used"
 }`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    // Clean response text in case LLM wraps it in markdown code block
-    const cleanedJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanedJson);
+    console.log("[GEMINI CALL] generateDocumentDraft: Calling Gemini API for ID:", id);
+    try {
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+      console.log("[GEMINI CALL] generateDocumentDraft: Success. Response length:", responseText.length);
+      // Clean response text in case LLM wraps it in markdown code block
+      const cleanedJson = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanedJson);
 
-    return {
-      eyebrow: parsed.eyebrow || fallbackDoc.eyebrow,
-      title: parsed.title || fallbackDoc.title,
-      body: parsed.body || fallbackDoc.body,
-      cite: parsed.cite || fallbackDoc.cite
-    };
+      return {
+        eyebrow: parsed.eyebrow || fallbackDoc.eyebrow,
+        title: parsed.title || fallbackDoc.title,
+        body: parsed.body || fallbackDoc.body,
+        cite: parsed.cite || fallbackDoc.cite
+      };
+    } catch (err) {
+      console.error("[GEMINI CALL] generateDocumentDraft: Error occurred:", err instanceof Error ? err.message : String(err));
+      throw err;
+    }
   })();
 
   return withTimeout(promise, process.env.NODE_ENV === "development" ? 25000 : 3000, fallbackDoc);
@@ -224,6 +239,12 @@ export async function resetComplaintAction(id: string) {
 // 6. Reset/Seed Demo
 export async function resetDemoAction() {
   await clearAllComplaints();
+  revalidatePath("/");
+  revalidatePath("/complaints");
+}
+
+export async function seedDemoAction() {
+  await seedDemoData();
   revalidatePath("/");
   revalidatePath("/complaints");
 }

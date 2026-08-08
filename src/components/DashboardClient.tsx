@@ -8,7 +8,8 @@ import {
   updateComplaintStageAction, 
   resetComplaintAction,
   generateDocumentDraft,
-  resetDemoAction
+  resetDemoAction,
+  seedDemoAction
 } from "@/app/actions";
 import { Complaint } from "@/lib/db";
 import { useLanguage } from "@/components/LanguageContext";
@@ -434,6 +435,13 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
     router.refresh();
   };
 
+  const handleSeedDemoDb = async () => {
+    showToast("Seeding demo database...", "info");
+    await seedDemoAction();
+    showToast("Demo database seeded!", "success");
+    router.refresh();
+  };
+
   // Stepper UI Calculations
   const stagesList: { key: Complaint["stage"]; label: string; labelTa: string }[] = [
     { key: "filed", label: "Filed", labelTa: "தாக்கல் செய்யப்பட்டது" },
@@ -835,6 +843,13 @@ export default function DashboardClient({ initialComplaint, complaintsCount }: D
                 title="Clean Database"
               >
                 {t("demoControlClear")}
+              </button>
+              <button
+                onClick={handleSeedDemoDb}
+                className="text-[10px] px-2.5 py-1 bg-green-950/20 border border-green-900/30 text-green-400 hover:bg-green-900/30 font-mono rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-green-500"
+                title="Seed Database"
+              >
+                {lang === "ta" ? "விதைக்க" : "Seed"}
               </button>
             </div>
           </div>

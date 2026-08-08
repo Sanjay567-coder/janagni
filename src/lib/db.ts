@@ -149,25 +149,20 @@ if (!globalForDb.mockComplaints) {
 export async function getComplaints(): Promise<Complaint[]> {
   if (db) {
     try {
+      console.log("[DB PATH] getComplaints: Querying live Firestore database via Client SDK.");
       const q = query(collection(db, "complaints"), orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
       const complaints: Complaint[] = [];
       snapshot.forEach((docSnap) => {
         complaints.push(docSnap.data() as Complaint);
       });
-      // If Firestore is empty, seed it with the mock complaints
-      if (complaints.length === 0) {
-        for (const mockC of MOCK_COMPLAINTS) {
-          await saveComplaint(mockC);
-          complaints.push(mockC);
-        }
-      }
       return complaints;
     } catch (e) {
-      console.error("Error fetching complaints from Firestore:", e);
+      console.error("[DB PATH] getComplaints: Error fetching from Firestore:", e);
     }
   }
   
+  console.log("[DB PATH] getComplaints: Querying in-memory mock fallback database.");
   // Mock DB implementation
   return Object.values(globalForDb.mockComplaints).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -242,6 +237,7 @@ export async function resetComplaintToFiled(id: string): Promise<void> {
 export async function clearAllComplaints(): Promise<void> {
   if (adminDb) {
     try {
+      console.log("[DB PATH] clearAllComplaints: Clearing Firestore using Firebase Admin SDK...");
       const complaintsCol = adminDb.collection("complaints");
       const snapshot = await complaintsCol.get();
       const batch = adminDb.batch();
@@ -250,22 +246,48 @@ export async function clearAllComplaints(): Promise<void> {
         batch.delete(docSnap.ref);
       });
       await batch.commit();
-      console.log("Cleared complaints from Firestore using Firebase Admin SDK.");
+      console.log("[DB PATH] clearAllComplaints: Successfully cleared Firestore using Firebase Admin SDK.");
     } catch (e) {
-      console.error("Error clearing complaints from Firestore using Admin SDK:", e instanceof Error ? e.message : String(e));
+      console.error("[DB PATH] clearAllComplaints: Error clearing Firestore using Admin SDK:", e instanceof Error ? e.message : String(e));
     }
   } else if (db) {
     try {
+      console.log("[DB PATH] clearAllComplaints: Clearing Firestore using Firebase Client SDK...");
       const q = query(collection(db, "complaints"));
       const snapshot = await getDocs(q);
       const batchPromises = snapshot.docs.map((docSnap) => deleteDoc(doc(db, "complaints", docSnap.id)));
       await Promise.all(batchPromises);
+      console.log("[DB PATH] clearAllComplaints: Successfully cleared Firestore using Firebase Client SDK.");
     } catch (e) {
-      console.error("Error clearing complaints from Firestore using Client SDK:", e);
+      console.error("[DB PATH] clearAllComplaints: Error clearing Firestore using Client SDK:", e);
     }
+  } else {
+    console.log("[DB PATH] clearAllComplaints: Clearing in-memory mock fallback database.");
   }
   
-  // Mock DB implementation
+  // Genuinely clear in-memory mock DB
+  globalForDb.mockComplaints = {};
+}
+
+export async function seedDemoData(): Promise<void> {
+  if (db) {
+    try {
+      console.log("[DB PATH] seedDemoData: Seeding mock complaints to Firestore via Client SDK...");
+      for (const mockC of MOCK_COMPLAINTS) {
+        await saveComplaint({
+          ...mockC,
+          createdAt: new Date(Date.now() - mockC.daysElapsed * 24 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      console.log("[DB PATH] seedDemoData: Successfully seeded Firestore database.");
+    } catch (e) {
+      console.error("[DB PATH] seedDemoData: Error seeding Firestore:", e);
+    }
+  } else {
+    console.log("[DB PATH] seedDemoData: Seeding mock complaints to in-memory mock fallback database.");
+  }
+
+  // Always seed to mock db
   globalForDb.mockComplaints = {};
   MOCK_COMPLAINTS.forEach((c) => {
     globalForDb.mockComplaints[c.complaintId] = { 

@@ -42,3 +42,9 @@
   animation: jn-fade 0.35s ease forwards;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-glow, .animate-fade-in {
+    animation: none !important;
+  }
+}
+
